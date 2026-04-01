@@ -66,7 +66,7 @@ fastify.register(fastifyStatic, {
 });
 
 fastify.setNotFoundHandler((res, reply) => {
-	return reply.code(404).type("text/html").sendFile("404.html");
+	return reply.sendFile("index.html");
 });
 
 fastify.server.on("listening", () => {
