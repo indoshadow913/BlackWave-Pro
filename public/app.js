@@ -18,31 +18,6 @@ const btnForward    = document.getElementById("btn-forward");
 const btnReload     = document.getElementById("btn-reload");
 const btnFullscreen = document.getElementById("btn-fullscreen");
 
-// ── Scramjet setup ─────────────────────────────────────────────────────────────
-let scramjet = null;
-
-async function initializeScramjet() {
-  if (scramjet) return scramjet;
-  
-  try {
-    const { ScramjetController } = $scramjetLoadController();
-    scramjet = new ScramjetController({
-      files: {
-        wasm: "/scram/scramjet.wasm.wasm",
-        all:  "/scram/scramjet.all.js",
-        sync: "/scram/scramjet.sync.js",
-      },
-    });
-    await scramjet.init("/scram/scramjet.config.js");
-    return scramjet;
-  } catch (err) {
-    console.error("Scramjet initialization failed:", err);
-    throw err;
-  }
-}
-
-const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
-
 // ── State ──────────────────────────────────────────────────────────────────────
 let activeFrame = null;
 
@@ -67,50 +42,16 @@ function showHome() {
   homeScreen.style.display = "flex";
   // Clean up frame
   if (activeFrame) {
-    activeFrame.frame.remove();
+    activeFrame.remove();
     activeFrame = null;
   }
   frameContainer.innerHTML = "";
 }
 
-async function ensureTransport() {
-  const wispUrl =
-    (location.protocol === "https:" ? "wss" : "ws") +
-    "://" +
-    location.host +
-    "/wisp/";
-  if ((await connection.getTransport()) !== "/libcurl/index.mjs") {
-    await connection.setTransport("/libcurl/index.mjs", [{ websocket: wispUrl }]);
-  }
-}
-
 async function navigate(rawUrl) {
   hideError();
 
-  // Initialize Scramjet first
-  try {
-    await initializeScramjet();
-  } catch (err) {
-    showError("Scramjet initialization failed.", err.toString());
-    return;
-  }
-
-  // Register service worker
-  try {
-    await registerSW();
-  } catch (err) {
-    showError("Could not register service worker.", err.toString());
-    return;
-  }
-
   const url = search(rawUrl, "https://www.google.com/search?q=%s");
-
-  try {
-    await ensureTransport();
-  } catch (err) {
-    showError("Transport setup failed.", err.toString());
-    return;
-  }
 
   // Show browser chrome
   showBrowser();
@@ -118,14 +59,22 @@ async function navigate(rawUrl) {
 
   // Create or reuse frame
   if (!activeFrame) {
-    activeFrame = scramjet.createFrame();
-    activeFrame.frame.style.width  = "100%";
-    activeFrame.frame.style.height = "100%";
-    activeFrame.frame.style.border = "none";
-    frameContainer.appendChild(activeFrame.frame);
+    activeFrame = document.createElement("iframe");
+    activeFrame.style.width  = "100%";
+    activeFrame.style.height = "100%";
+    activeFrame.style.border = "none";
+    frameContainer.appendChild(activeFrame);
   }
 
-  activeFrame.go(url);
+  // Encode URL for proxy
+  const encodedUrl = encodeURIComponent(url);
+  const proxyUrl = `/proxy/${encodedUrl}`;
+  
+  try {
+    activeFrame.src = proxyUrl;
+  } catch (err) {
+    showError("Failed to navigate.", err.toString());
+  }
 }
 
 // ── Event listeners ────────────────────────────────────────────────────────────
@@ -152,19 +101,19 @@ btnHome.addEventListener("click", showHome);
 
 btnBack.addEventListener("click", () => {
   if (activeFrame) {
-    try { activeFrame.frame.contentWindow.history.back(); } catch (_) {}
+    try { activeFrame.contentWindow.history.back(); } catch (_) {}
   }
 });
 
 btnForward.addEventListener("click", () => {
   if (activeFrame) {
-    try { activeFrame.frame.contentWindow.history.forward(); } catch (_) {}
+    try { activeFrame.contentWindow.history.forward(); } catch (_) {}
   }
 });
 
 btnReload.addEventListener("click", () => {
   if (activeFrame) {
-    try { activeFrame.frame.contentWindow.location.reload(); } catch (_) {}
+    try { activeFrame.contentWindow.location.reload(); } catch (_) {}
   }
 });
 
@@ -178,7 +127,6 @@ btnFullscreen.addEventListener("click", () => {
 });
 
 // Update nav bar URL when frame navigates
-// Scramjet frames are iframes; we listen to load events
 frameContainer.addEventListener("load", (e) => {
   if (e.target && e.target.tagName === "IFRAME") {
     try {
@@ -242,3 +190,19 @@ if (savedTheme === "dark") {
 }
 
 themeToggle.addEventListener("click", toggleTheme);
+
+// ── Utility Functions ──────────────────────────────────────────────────────────
+function search(query, searchUrl) {
+  // If it looks like a URL, return it as-is
+  if (query.startsWith("http://") || query.startsWith("https://")) {
+    return query;
+  }
+  
+  // If it looks like a domain, add https://
+  if (query.includes(".") && !query.includes(" ")) {
+    return "https://" + query;
+  }
+  
+  // Otherwise, treat it as a search query
+  return searchUrl.replace("%s", encodeURIComponent(query));
+}
