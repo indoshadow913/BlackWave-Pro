@@ -1,112 +1,109 @@
 import { createServer } from "node:http";
 import { fileURLToPath } from "url";
 import { hostname } from "node:os";
-import { server as wisp } from "@mercuryworkshop/wisp-js";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
-
-import { scramjetPath } from "@mercuryworkshop/scramjet/path";
-import { libcurlPath } from "@mercuryworkshop/libcurl-transport";
-
-// Import baremuxPath from the CommonJS module
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const { baremuxPath } = require("@mercuryworkshop/bare-mux/node");
+import httpProxy from "http-proxy";
 
 const publicPath = fileURLToPath(new URL("../public/", import.meta.url));
 
-// Wisp Configuration: Refer to the documentation at https://www.npmjs.com/package/@mercuryworkshop/wisp-js
+// Crear proxy HTTP
+const proxy = httpProxy.createProxyServer({
+  changeOrigin: true,
+  followRedirects: true,
+  timeout: 30000,
+  proxyTimeout: 30000,
+  ws: true,
+});
 
-// Wisp logging is not available in this version
-Object.assign(wisp.options, {
-	allow_udp_streams: false,
-	hostname_blacklist: [/example\.com/],
-	dns_servers: ["1.1.1.3", "1.0.0.3"],
-	headers: {
-		"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-	"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-	"accept-language": "en-US,en;q=0.9",
-	"accept-encoding": "gzip, deflate, br",
-	"sec-fetch-dest": "document",
-	"sec-fetch-mode": "navigate",
-	"sec-fetch-site": "none",
-	"sec-fetch-user": "?1",
-	"upgrade-insecure-requests": "1",
-	"dnt": "1"
-	},
+// Manejar errores del proxy
+proxy.on("error", (err, req, res) => {
+  console.error("Proxy error:", err);
+  res.writeHead(502, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ error: "Bad Gateway", message: err.message }));
 });
 
 const fastify = Fastify({
-	serverFactory: (handler) => {
-		return createServer()
-			.on("request", (req, res) => {
-				res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-				res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-				handler(req, res);
-			})
-			.on("upgrade", (req, socket, head) => {
-				if (req.url.endsWith("/wisp/")) wisp.routeRequest(req, socket, head);
-				else socket.end();
-			});
-	},
+  serverFactory: (handler) => {
+    return createServer()
+      .on("request", (req, res) => {
+        // Headers de seguridad
+        res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+        res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "*");
+        res.setHeader("Access-Control-Allow-Headers", "*");
+        
+        // Manejar peticiones de proxy
+        if (req.url.startsWith("/proxy/")) {
+          const targetUrl = req.url.slice(7); // Remover "/proxy/"
+          try {
+            const decodedUrl = decodeURIComponent(targetUrl);
+            proxy.web(req, res, { target: decodedUrl });
+          } catch (err) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Invalid URL" }));
+          }
+        } else {
+          handler(req, res);
+        }
+      })
+      .on("upgrade", (req, socket, head) => {
+        if (req.url.startsWith("/proxy/")) {
+          const targetUrl = req.url.slice(7);
+          try {
+            const decodedUrl = decodeURIComponent(targetUrl);
+            proxy.ws(req, socket, head, { target: decodedUrl });
+          } catch (err) {
+            socket.end();
+          }
+        } else {
+          socket.end();
+        }
+      });
+  },
 });
 
+// Registrar archivos estáticos
 fastify.register(fastifyStatic, {
-	root: publicPath,
-	decorateReply: true,
+  root: publicPath,
+  decorateReply: true,
 });
 
-fastify.register(fastifyStatic, {
-	root: scramjetPath,
-	prefix: "/scram/",
-	decorateReply: false,
-});
-
-fastify.register(fastifyStatic, {
-	root: libcurlPath,
-	prefix: "/libcurl/",
-	decorateReply: false,
-});
-
-fastify.register(fastifyStatic, {
-	root: baremuxPath,
-	prefix: "/baremux/",
-	decorateReply: false,
-});
-
+// Ruta para servir index.html en rutas no encontradas (SPA fallback)
 fastify.setNotFoundHandler((request, reply) => {
-	return reply.sendFile("index.html");
+  return reply.sendFile("index.html");
 });
 
+// Evento cuando el servidor está escuchando
 fastify.server.on("listening", () => {
-	const address = fastify.server.address();
-
-	// by default we are listening on 0.0.0.0 (every interface)
-	// we just need to list a few
-	console.log("Listening on:");
-	console.log(`\thttp://localhost:${address.port}`);
-	console.log(`\thttp://${hostname()}:${address.port}`);
-	console.log(
-		`\thttp://${
-			address.family === "IPv6" ? `[${address.address}]` : address.address
-		}:${address.port}`
-	);
+  const address = fastify.server.address();
+  console.log("✅ BlackWave-Pro is listening on:");
+  console.log(`\thttp://localhost:${address.port}`);
+  console.log(`\thttp://${hostname()}:${address.port}`);
+  console.log(
+    `\thttp://${
+      address.family === "IPv6" ? `[${address.address}]` : address.address
+    }:${address.port}`
+  );
 });
 
+// Manejar señales de cierre
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
 function shutdown() {
-	console.log("SIGTERM signal received: closing HTTP server");
-	fastify.close();
-	process.exit(0);
+  console.log("SIGTERM signal received: closing HTTP server");
+  fastify.close();
+  process.exit(0);
 }
 
+// Obtener puerto
 let port = parseInt(process.env.PORT || "");
+if (isNaN(port)) port = 10000;
 
-if (isNaN(port)) port = 8080;
-
+// Iniciar servidor
 fastify.listen({
-	port: port,
-	host: "0.0.0.0",
+  port: port,
+  host: "0.0.0.0",
 });
