@@ -1,0 +1,16 @@
+# FreeWave Proxy - Render Deployment Configuration
+
+services:
+  - type: web
+    name: freewave-proxy
+    env: node
+    plan: free
+    branch: main
+    healthCheckPath: /
+    buildCommand: "pnpm install"
+    startCommand: "node src/index.js"
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: PORT
+        value: "10000"
