@@ -19,15 +19,27 @@ const btnReload     = document.getElementById("btn-reload");
 const btnFullscreen = document.getElementById("btn-fullscreen");
 
 // ── Scramjet setup ─────────────────────────────────────────────────────────────
-const { ScramjetController } = $scramjetLoadController();
-const scramjet = new ScramjetController({
-  files: {
-    wasm: "/scram/scramjet.wasm.wasm",
-    all:  "/scram/scramjet.all.js",
-    sync: "/scram/scramjet.sync.js",
-  },
-});
-scramjet.init("/scram/scramjet.config.js");
+let scramjet = null;
+
+async function initializeScramjet() {
+  if (scramjet) return scramjet;
+  
+  try {
+    const { ScramjetController } = $scramjetLoadController();
+    scramjet = new ScramjetController({
+      files: {
+        wasm: "/scram/scramjet.wasm.wasm",
+        all:  "/scram/scramjet.all.js",
+        sync: "/scram/scramjet.sync.js",
+      },
+    });
+    await scramjet.init("/scram/scramjet.config.js");
+    return scramjet;
+  } catch (err) {
+    console.error("Scramjet initialization failed:", err);
+    throw err;
+  }
+}
 
 const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
 
@@ -75,7 +87,15 @@ async function ensureTransport() {
 async function navigate(rawUrl) {
   hideError();
 
-  // Register service worker first
+  // Initialize Scramjet first
+  try {
+    await initializeScramjet();
+  } catch (err) {
+    showError("Scramjet initialization failed.", err.toString());
+    return;
+  }
+
+  // Register service worker
   try {
     await registerSW();
   } catch (err) {
