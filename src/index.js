@@ -65,8 +65,7 @@ fastify.register(fastifyStatic, {
 	decorateReply: false,
 });
 
-// Catch-all route to serve index.html for SPA routing
-fastify.get("/*", async (request, reply) => {
+fastify.setNotFoundHandler((request, reply) => {
 	return reply.sendFile("index.html");
 });
 
