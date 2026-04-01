@@ -1,7 +1,7 @@
 {
-	"name": "t-solace-proxy",
+	"name": "blackwave-pro",
 	"version": "2.0.0",
-	"description": "T-Solace Proxy - High-performance web proxy for unrestricted browsing",
+	"description": "BlackWave-Pro - Advanced web proxy with YouTube support",
 	"type": "module",
 	"engines": {
 		"npm": ">=7.0.0",
