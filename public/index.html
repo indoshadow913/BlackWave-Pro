@@ -3,11 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no" />
-    <title>T-Solace Proxy</title>
+    <title>BlackWave-Pro</title>
     <link rel="shortcut icon" href="favicon.ico" />
-    <script src="/scram/scramjet.all.js"></script>
-    <script src="/baremux/index.js"></script>
     <link rel="stylesheet" href="style.css" />
+    <!-- Fixed paths: removed broken scramjet/baremux links and fixed local paths -->
     <script src="register-sw.js" defer></script>
     <script src="search.js" defer></script>
     <script src="app.js" defer></script>
@@ -130,35 +129,23 @@
       </div>
 
       <footer>
-        <span>FreeWave &mdash; Powered by <a href="https://github.com/MercuryWorkshop/scramjet" target="_blank">Scramjet</a></span>
+        <span>BlackWave-Pro &mdash; Powered by HTTP Proxy</span>
         <span class="footer-note">For educational and personal use only.</span>
       </footer>
     </div>
 
     <div id="browser-chrome" style="display:none;">
       <div class="browser-toolbar">
-        <button id="btn-home" class="toolbar-btn" title="Home">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        </button>
-        <button id="btn-back" class="toolbar-btn" title="Back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <button id="btn-forward" class="toolbar-btn" title="Forward">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <button id="btn-reload" class="toolbar-btn" title="Reload">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        </button>
+        <button id="btn-home" class="toolbar-btn" title="Home">🏠</button>
+        <button id="btn-back" class="toolbar-btn" title="Back">⬅️</button>
+        <button id="btn-reload" class="toolbar-btn" title="Reload">🔄</button>
         <div class="url-bar-wrapper">
           <form id="nav-form">
             <input id="nav-input" type="text" placeholder="Enter URL or search..." autocomplete="off" spellcheck="false" />
           </form>
         </div>
-        <button id="btn-fullscreen" class="toolbar-btn" title="Fullscreen">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-        </button>
       </div>
-      <div id="frame-container"></div>
+      <div id="frame-container" style="width:100%; height:calc(100vh - 60px);"></div>
     </div>
   </body>
 </html>
