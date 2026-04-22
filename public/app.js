@@ -7,9 +7,6 @@ const proxyForm     = document.getElementById("proxy-form");
 const proxyInput    = document.getElementById("proxy-input");
 const navInput      = document.getElementById("nav-input");
 const frameContainer = document.getElementById("frame-container");
-const errorArea     = document.getElementById("error-area");
-const errorMsg      = document.getElementById("error-msg");
-const errorCode     = document.getElementById("error-code");
 
 const btnHome       = document.getElementById("btn-home");
 const btnBack       = document.getElementById("btn-back");
@@ -19,19 +16,8 @@ const btnFullscreen = document.getElementById("btn-fullscreen");
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let activeFrame = null;
-let currentProxyUrl = null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function showError(msg, detail) {
-  errorArea.style.display = "block";
-  errorMsg.textContent = msg;
-  errorCode.textContent = detail || "";
-}
-
-function hideError() {
-  errorArea.style.display = "none";
-}
-
 function showBrowser() {
   homeScreen.style.display = "none";
   browserChrome.style.display = "flex";
@@ -46,35 +32,31 @@ function showHome() {
     activeFrame = null;
   }
   frameContainer.innerHTML = "";
-  currentProxyUrl = null;
 }
 
-function search(query, searchUrl) {
-  // If it looks like a URL, return it as-is
-  if (query.startsWith("http://") || query.startsWith("https://")) {
-    return query;
+function normalizeUrl(input) {
+  // Si ya es una URL completa, devolverla tal cual
+  if (input.startsWith("http://") || input.startsWith("https://")) {
+    return input;
   }
   
-  // If it looks like a domain, add https://
-  if (query.includes(".") && !query.includes(" ")) {
-    return "https://" + query;
+  // Si parece un dominio (tiene un punto y sin espacios), agregar https://
+  if (input.includes(".") && !input.includes(" ")) {
+    return "https://" + input;
   }
   
-  // Otherwise, treat it as a search query
-  return searchUrl.replace("%s", encodeURIComponent(query));
+  // Si no, tratarlo como búsqueda en Google
+  return "https://www.google.com/search?q=" + encodeURIComponent(input);
 }
 
-async function navigate(rawUrl) {
-  hideError();
-
-  const url = search(rawUrl, "https://www.google.com/search?q=%s");
-
-  // Show browser chrome
+function navigate(rawUrl) {
+  const url = normalizeUrl(rawUrl);
+  
+  // Mostrar navegador
   showBrowser();
   navInput.value = url;
-  currentProxyUrl = url;
 
-  // Create or reuse frame
+  // Crear o reutilizar frame
   if (!activeFrame) {
     activeFrame = document.createElement("iframe");
     activeFrame.style.width  = "100%";
@@ -83,90 +65,12 @@ async function navigate(rawUrl) {
     frameContainer.appendChild(activeFrame);
   }
 
-  // Encode URL for proxy
+  // Codificar URL para proxy
   const encodedUrl = encodeURIComponent(url);
   const proxyUrl = `/proxy/${encodedUrl}`;
   
-  try {
-    activeFrame.src = proxyUrl;
-    
-    // Wait a bit for iframe to load, then inject script
-    setTimeout(() => {
-      injectProxyScript();
-    }, 1000);
-  } catch (err) {
-    showError("Failed to navigate.", err.toString());
-  }
-}
-
-function injectProxyScript() {
-  if (!activeFrame || !activeFrame.contentWindow) return;
-
-  try {
-    const script = activeFrame.contentWindow.document.createElement("script");
-    script.textContent = `
-      (function() {
-        // Interceptar clicks en todos los links
-        document.addEventListener('click', function(e) {
-          const link = e.target.closest('a');
-          if (link && link.href) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            let url = link.href;
-            
-            // Ignorar links especiales
-            if (url.startsWith('javascript:') || url.startsWith('data:') || url.startsWith('#')) {
-              return;
-            }
-            
-            // Resolver URLs relativas
-            if (url.startsWith('/')) {
-              const baseUrl = window.location.origin;
-              url = baseUrl + url;
-            }
-            
-            // Navegar a través del proxy
-            window.parent.postMessage({
-              type: 'navigate',
-              url: url
-            }, '*');
-          }
-        }, true);
-        
-        // Interceptar envíos de formularios
-        document.addEventListener('submit', function(e) {
-          if (e.target && e.target.action) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            let action = e.target.action;
-            
-            if (!action.startsWith('javascript:') && !action.startsWith('data:')) {
-              if (action.startsWith('/')) {
-                const baseUrl = window.location.origin;
-                action = baseUrl + action;
-              }
-              
-              // Construir URL con parámetros del formulario
-              const formData = new FormData(e.target);
-              const params = new URLSearchParams(formData);
-              const fullUrl = action + '?' + params.toString();
-              
-              window.parent.postMessage({
-                type: 'navigate',
-                url: fullUrl
-              }, '*');
-            }
-          }
-        }, true);
-      })();
-    `;
-    
-    activeFrame.contentWindow.document.body.appendChild(script);
-  } catch (err) {
-    console.log("Could not inject script (cross-origin):", err);
-  }
+  console.log("Navigating to:", proxyUrl);
+  activeFrame.src = proxyUrl;
 }
 
 // ── Event listeners ────────────────────────────────────────────────────────────
@@ -176,12 +80,14 @@ proxyForm.addEventListener("submit", (e) => {
   if (val) navigate(val);
 });
 
-// Escuchar mensajes del iframe
-window.addEventListener('message', (e) => {
-  if (e.data && e.data.type === 'navigate') {
-    navigate(e.data.url);
+// Navegar desde la barra de navegación del navegador
+navInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const val = navInput.value.trim();
+    if (val) navigate(val);
   }
-}, false);
+});
 
 document.querySelectorAll(".quick-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -219,30 +125,6 @@ btnFullscreen.addEventListener("click", () => {
   }
 });
 
-// Update nav bar URL when frame navigates
-frameContainer.addEventListener("load", (e) => {
-  if (e.target && e.target.tagName === "IFRAME") {
-    try {
-      const loc = e.target.contentWindow.location.href;
-      if (loc && loc !== "about:blank") navInput.value = loc;
-      
-      // Re-inject script after navigation
-      setTimeout(() => {
-        injectProxyScript();
-      }, 500);
-    } catch (_) {}
-  }
-}, true);
-
-// Navegar desde la barra de navegación del navegador
-navInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    const val = navInput.value.trim();
-    if (val) navigate(val);
-  }
-});
-
 // ── Panic Button ──────────────────────────────────────────────────────────────
 const panicBtn = document.getElementById("panic-btn");
 const themeToggle = document.getElementById("theme-toggle");
@@ -256,14 +138,6 @@ panicBtn.addEventListener("click", triggerPanic);
 
 // Keyboard shortcut for panic button (= key) - works globally
 window.addEventListener("keydown", (e) => {
-  if (e.key === "=" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    e.preventDefault();
-    triggerPanic();
-  }
-}, true);
-
-// Also intercept at document level
-document.addEventListener("keydown", (e) => {
   if (e.key === "=" && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     triggerPanic();
