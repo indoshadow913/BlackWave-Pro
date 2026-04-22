@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import httpProxy from "http-proxy";
 import { createServer } from "http";
+import { URL } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -33,9 +34,16 @@ const server = createServer((req, res) => {
     return;
   }
   
-  // Proxy para /proxy/*
-  if (req.url.startsWith("/proxy/")) {
-    const targetUrl = req.url.slice(7); // Remover "/proxy/"
+  // Proxy para /proxy?url=...
+  if (req.url.startsWith("/proxy")) {
+    const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+    const targetUrl = parsedUrl.searchParams.get("url");
+    
+    if (!targetUrl) {
+      res.writeHead(400, { "Content-Type": "text/html" });
+      res.end("<h1>Error: No URL provided</h1>");
+      return;
+    }
     
     console.log("Proxying to:", targetUrl);
     

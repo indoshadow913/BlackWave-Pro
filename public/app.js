@@ -1,4 +1,3 @@
-"use strict";
 
 // ── Elements ──────────────────────────────────────────────────────────────────
 const homeScreen    = document.getElementById("home-screen");
@@ -65,9 +64,8 @@ function navigate(rawUrl) {
     frameContainer.appendChild(activeFrame);
   }
 
-  // Codificar URL para proxy
-  const encodedUrl = encodeURIComponent(url);
-  const proxyUrl = `/proxy/${encodedUrl}`;
+  // Usar parámetro de query en lugar de ruta
+  const proxyUrl = `/proxy?url=${encodeURIComponent(url)}`;
   
   console.log("Navigating to:", proxyUrl);
   activeFrame.src = proxyUrl;
@@ -98,75 +96,31 @@ document.querySelectorAll(".quick-btn").forEach((btn) => {
 
 btnHome.addEventListener("click", showHome);
 
-btnBack.addEventListener("click", () => {
-  if (activeFrame) {
-    try { activeFrame.contentWindow.history.back(); } catch (_) {}
+// Botón de pánico
+document.addEventListener("keydown", (e) => {
+  if (e.key === "=") {
+    navigate("https://classroom.google.com");
   }
+});
+
+// Botones de navegación
+btnBack.addEventListener("click", () => {
+  if (activeFrame) activeFrame.contentWindow.history.back();
 });
 
 btnForward.addEventListener("click", () => {
-  if (activeFrame) {
-    try { activeFrame.contentWindow.history.forward(); } catch (_) {}
-  }
+  if (activeFrame) activeFrame.contentWindow.history.forward();
 });
 
 btnReload.addEventListener("click", () => {
-  if (activeFrame) {
-    try { activeFrame.contentWindow.location.reload(); } catch (_) {}
-  }
+  if (activeFrame) activeFrame.contentWindow.location.reload();
 });
 
 btnFullscreen.addEventListener("click", () => {
-  const el = frameContainer;
-  if (!document.fullscreenElement) {
-    el.requestFullscreen().catch(() => {});
-  } else {
-    document.exitFullscreen().catch(() => {});
-  }
+  if (activeFrame) activeFrame.requestFullscreen();
 });
 
-// ── Panic Button ──────────────────────────────────────────────────────────────
-const panicBtn = document.getElementById("panic-btn");
-const themeToggle = document.getElementById("theme-toggle");
-
-// Panic button - navigate to Google Classroom
-function triggerPanic() {
-  window.location.href = "https://classroom.google.com";
-}
-
-panicBtn.addEventListener("click", triggerPanic);
-
-// Keyboard shortcut for panic button (= key) - works globally
-window.addEventListener("keydown", (e) => {
-  if (e.key === "=" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    e.preventDefault();
-    triggerPanic();
-  }
-}, true);
-
-// ── Theme Toggle ──────────────────────────────────────────────────────────────
-function toggleTheme() {
-  const html = document.documentElement;
-  const isDark = html.getAttribute("data-theme") === "dark";
-  
-  if (isDark) {
-    html.removeAttribute("data-theme");
-    localStorage.setItem("theme", "light");
-    themeToggle.textContent = "🌙";
-  } else {
-    html.setAttribute("data-theme", "dark");
-    localStorage.setItem("theme", "dark");
-    themeToggle.textContent = "☀️";
-  }
-}
-
-// Load saved theme preference
-const savedTheme = localStorage.getItem("theme");
-if (savedTheme === "dark") {
-  document.documentElement.setAttribute("data-theme", "dark");
-  themeToggle.textContent = "☀️";
-} else {
-  themeToggle.textContent = "🌙";
-}
-
-themeToggle.addEventListener("click", toggleTheme);
+// Cambiar tema
+document.getElementById("theme-toggle")?.addEventListener("click", () => {
+  document.body.classList.toggle("light-theme");
+});
