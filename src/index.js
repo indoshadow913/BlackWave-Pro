@@ -38,6 +38,60 @@ const proxy = httpProxy.createProxyServer({
   },
 });
 
+// Manejar respuestas del proxy para reescribir URLs
+proxy.on("proxyRes", (proxyRes, req, res) => {
+  // Reescribir URLs en HTML
+  if (proxyRes.headers['content-type'] && proxyRes.headers['content-type'].includes('text/html')) {
+    let chunks = [];
+    const originalWrite = res.write;
+    const originalEnd = res.end;
+    
+    proxyRes.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+    
+    proxyRes.on('end', () => {
+      try {
+        let html = Buffer.concat(chunks).toString('utf-8');
+        
+        // Obtener la URL original del proxy
+        const originalUrl = req.url.slice(7); // Remover "/proxy/"
+        const decodedUrl = decodeURIComponent(originalUrl);
+        const baseUrl = new URL(decodedUrl).origin;
+        
+        // Reescribir href en links
+        html = html.replace(/href=["'](?!(?:javascript|data|#|\/\/))([^"']+)["']/gi, (match, url) => {
+          if (url.startsWith('http')) {
+            return `href="/proxy/${encodeURIComponent(url)}"`;
+          } else if (url.startsWith('/')) {
+            return `href="/proxy/${encodeURIComponent(baseUrl + url)}"`;
+          } else {
+            return `href="/proxy/${encodeURIComponent(baseUrl + '/' + url)}"`;
+          }
+        });
+        
+        // Reescribir src en scripts e imágenes
+        html = html.replace(/src=["'](?!(?:javascript|data|#|\/\/))([^"']+)["']/gi, (match, url) => {
+          if (url.startsWith('http')) {
+            return `src="/proxy/${encodeURIComponent(url)}"`;
+          } else if (url.startsWith('/')) {
+            return `src="/proxy/${encodeURIComponent(baseUrl + url)}"`;
+          } else {
+            return `src="/proxy/${encodeURIComponent(baseUrl + '/' + url)}"`;
+          }
+        });
+        
+        res.write(html);
+        res.end();
+      } catch (err) {
+        console.error('URL rewriting error:', err);
+        res.write(Buffer.concat(chunks));
+        res.end();
+      }
+    });
+  }
+});
+
 // Manejar errores del proxy
 proxy.on("error", (err, req, res) => {
   console.error("Proxy error:", err);
