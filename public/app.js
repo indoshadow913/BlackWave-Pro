@@ -5,7 +5,6 @@ const homeScreen    = document.getElementById("home-screen");
 const browserChrome = document.getElementById("browser-chrome");
 const proxyForm     = document.getElementById("proxy-form");
 const proxyInput    = document.getElementById("proxy-input");
-const navForm       = document.getElementById("nav-form");
 const navInput      = document.getElementById("nav-input");
 const frameContainer = document.getElementById("frame-container");
 const errorArea     = document.getElementById("error-area");
@@ -20,6 +19,7 @@ const btnFullscreen = document.getElementById("btn-fullscreen");
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let activeFrame = null;
+let currentProxyUrl = null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function showError(msg, detail) {
@@ -46,6 +46,22 @@ function showHome() {
     activeFrame = null;
   }
   frameContainer.innerHTML = "";
+  currentProxyUrl = null;
+}
+
+function search(query, searchUrl) {
+  // If it looks like a URL, return it as-is
+  if (query.startsWith("http://") || query.startsWith("https://")) {
+    return query;
+  }
+  
+  // If it looks like a domain, add https://
+  if (query.includes(".") && !query.includes(" ")) {
+    return "https://" + query;
+  }
+  
+  // Otherwise, treat it as a search query
+  return searchUrl.replace("%s", encodeURIComponent(query));
 }
 
 async function navigate(rawUrl) {
@@ -56,6 +72,7 @@ async function navigate(rawUrl) {
   // Show browser chrome
   showBrowser();
   navInput.value = url;
+  currentProxyUrl = url;
 
   // Create or reuse frame
   if (!activeFrame) {
@@ -72,8 +89,83 @@ async function navigate(rawUrl) {
   
   try {
     activeFrame.src = proxyUrl;
+    
+    // Wait a bit for iframe to load, then inject script
+    setTimeout(() => {
+      injectProxyScript();
+    }, 1000);
   } catch (err) {
     showError("Failed to navigate.", err.toString());
+  }
+}
+
+function injectProxyScript() {
+  if (!activeFrame || !activeFrame.contentWindow) return;
+
+  try {
+    const script = activeFrame.contentWindow.document.createElement("script");
+    script.textContent = `
+      (function() {
+        // Interceptar clicks en todos los links
+        document.addEventListener('click', function(e) {
+          const link = e.target.closest('a');
+          if (link && link.href) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            let url = link.href;
+            
+            // Ignorar links especiales
+            if (url.startsWith('javascript:') || url.startsWith('data:') || url.startsWith('#')) {
+              return;
+            }
+            
+            // Resolver URLs relativas
+            if (url.startsWith('/')) {
+              const baseUrl = window.location.origin;
+              url = baseUrl + url;
+            }
+            
+            // Navegar a través del proxy
+            window.parent.postMessage({
+              type: 'navigate',
+              url: url
+            }, '*');
+          }
+        }, true);
+        
+        // Interceptar envíos de formularios
+        document.addEventListener('submit', function(e) {
+          if (e.target && e.target.action) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            let action = e.target.action;
+            
+            if (!action.startsWith('javascript:') && !action.startsWith('data:')) {
+              if (action.startsWith('/')) {
+                const baseUrl = window.location.origin;
+                action = baseUrl + action;
+              }
+              
+              // Construir URL con parámetros del formulario
+              const formData = new FormData(e.target);
+              const params = new URLSearchParams(formData);
+              const fullUrl = action + '?' + params.toString();
+              
+              window.parent.postMessage({
+                type: 'navigate',
+                url: fullUrl
+              }, '*');
+            }
+          }
+        }, true);
+      })();
+    `;
+    
+    activeFrame.contentWindow.document.body.appendChild(script);
+  } catch (err) {
+    console.log("Could not inject script (cross-origin):", err);
   }
 }
 
@@ -84,11 +176,12 @@ proxyForm.addEventListener("submit", (e) => {
   if (val) navigate(val);
 });
 
-navForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const val = navInput.value.trim();
-  if (val) navigate(val);
-});
+// Escuchar mensajes del iframe
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'navigate') {
+    navigate(e.data.url);
+  }
+}, false);
 
 document.querySelectorAll(".quick-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -132,10 +225,23 @@ frameContainer.addEventListener("load", (e) => {
     try {
       const loc = e.target.contentWindow.location.href;
       if (loc && loc !== "about:blank") navInput.value = loc;
+      
+      // Re-inject script after navigation
+      setTimeout(() => {
+        injectProxyScript();
+      }, 500);
     } catch (_) {}
   }
 }, true);
 
+// Navegar desde la barra de navegación del navegador
+navInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const val = navInput.value.trim();
+    if (val) navigate(val);
+  }
+});
 
 // ── Panic Button ──────────────────────────────────────────────────────────────
 const panicBtn = document.getElementById("panic-btn");
@@ -190,19 +296,3 @@ if (savedTheme === "dark") {
 }
 
 themeToggle.addEventListener("click", toggleTheme);
-
-// ── Utility Functions ──────────────────────────────────────────────────────────
-function search(query, searchUrl) {
-  // If it looks like a URL, return it as-is
-  if (query.startsWith("http://") || query.startsWith("https://")) {
-    return query;
-  }
-  
-  // If it looks like a domain, add https://
-  if (query.includes(".") && !query.includes(" ")) {
-    return "https://" + query;
-  }
-  
-  // Otherwise, treat it as a search query
-  return searchUrl.replace("%s", encodeURIComponent(query));
-}
