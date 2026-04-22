@@ -1,151 +1,444 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no" />
-    <title>BlackWave-Pro</title>
-    <link rel="shortcut icon" href="favicon.ico" />
-    <link rel="stylesheet" href="style.css" />
-    <!-- Fixed paths: removed broken scramjet/baremux links and fixed local paths -->
-    <script src="register-sw.js" defer></script>
-    <script src="search.js" defer></script>
-    <script src="app.js" defer></script>
-  </head>
-  <body>
-    <button id="panic-btn" class="panic-btn" title="Panic Button (Press = key)">🚨</button>
-    <button id="theme-toggle" class="theme-toggle" title="Toggle Theme">☀️</button>
-    <div id="home-screen">
-      <header>
-        <div class="logo-area">
-          <img class="logo-icon" src="mahoraga.png" alt="BlackWave-Pro" />
-          <span class="logo-text">BlackWave-Pro</span>
-        </div>
-        <p class="tagline">Browse freely &mdash; stream anything, anywhere</p>
-      </header>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlackWave-Pro</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-      <div class="search-container">
-        <form id="proxy-form">
-          <div class="search-bar">
-            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input
-              id="proxy-input"
-              type="text"
-              placeholder="Enter a URL or search term..."
-              autocomplete="off"
-              spellcheck="false"
-            />
-            <button type="submit" class="go-btn">Go</button>
-          </div>
-        </form>
+    :root {
+      --primary: #8b5cf6;
+      --primary-dark: #7c3aed;
+      --primary-light: #a78bfa;
+      --bg-dark: #1a1a2e;
+      --bg-light: #16213e;
+      --text-primary: #ffffff;
+      --text-secondary: #b0b0b0;
+      --border: #2d2d4a;
+      --accent: #ec4899;
+    }
+
+    html[data-theme="light"] {
+      --primary: #7c3aed;
+      --primary-dark: #6d28d9;
+      --primary-light: #a78bfa;
+      --bg-dark: #f5f5f5;
+      --bg-light: #ffffff;
+      --text-primary: #1a1a1a;
+      --text-secondary: #666666;
+      --border: #e0e0e0;
+      --accent: #ec4899;
+    }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    #home-screen {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: linear-gradient(135deg, var(--bg-dark) 0%, #2d1b4e 100%);
+      padding: 2rem;
+      gap: 2rem;
+      overflow-y: auto;
+    }
+
+    #home-screen.hidden {
+      display: none;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--primary);
+    }
+
+    .logo-icon {
+      font-size: 2rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1rem;
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-size: 1.5rem;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+
+    button:hover {
+      background: var(--primary-dark);
+      transform: scale(1.05);
+    }
+
+    button:active {
+      transform: scale(0.95);
+    }
+
+    #panic-btn {
+      background: var(--accent);
+    }
+
+    #panic-btn:hover {
+      background: #ec4899;
+    }
+
+    #theme-toggle {
+      background: var(--primary-light);
+    }
+
+    .search-container {
+      display: flex;
+      gap: 0.5rem;
+      max-width: 600px;
+    }
+
+    input {
+      flex: 1;
+      padding: 1rem;
+      border: 2px solid var(--primary);
+      border-radius: 0.5rem;
+      background: var(--bg-light);
+      color: var(--text-primary);
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+
+    input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .btn-go {
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      font-weight: bold;
+      background: var(--primary);
+      border-radius: 0.5rem;
+    }
+
+    .btn-go:hover {
+      background: var(--primary-dark);
+    }
+
+    .info-box {
+      background: rgba(139, 92, 246, 0.1);
+      border-left: 4px solid var(--primary);
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .info-box h3 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .info-box p {
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .quick-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .quick-btn {
+      padding: 1rem;
+      background: var(--bg-light);
+      border: 2px solid var(--border);
+      border-radius: 0.5rem;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .quick-btn:hover {
+      border-color: var(--primary);
+      background: rgba(139, 92, 246, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .quick-btn-icon {
+      font-size: 1.5rem;
+    }
+
+    #browser-chrome {
+      display: none;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--bg-dark);
+    }
+
+    .browser-toolbar {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: var(--bg-light);
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+
+    .browser-toolbar button {
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      font-size: 1rem;
+    }
+
+    .browser-toolbar input {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+    }
+
+    #frame-container {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #error-area {
+      display: none;
+      background: rgba(236, 72, 153, 0.1);
+      border: 1px solid var(--accent);
+      padding: 1rem;
+      margin: 1rem;
+      border-radius: 0.5rem;
+    }
+
+    #error-msg {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    #error-code {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--text-secondary);
+      padding: 1rem;
+      font-size: 0.9rem;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 768px) {
+      #home-screen {
+        padding: 1rem;
+      }
+
+      .quick-links {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      }
+
+      .search-container {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="home-screen">
+    <div class="header">
+      <div class="logo">
+        <span class="logo-icon">🌊</span>
+        <span>BlackWave-Pro</span>
       </div>
-
-      <div class="instructions">
-        <h3>How to Use BlackWave-Pro</h3>
-        <ul>
-          <li><strong>Search the Proxy:</strong> Enter a URL or search term in the search bar and click "Go" to browse through the proxy</li>
-          <li><strong>Watch Anime:</strong> Search for "9animetv.to" in the search bar to access anime content</li>
-          <li><strong>Panic Button:</strong> Press the 🚨 button or "=" key anytime to quickly navigate to Google Classroom</li>
-          <li><strong>Theme Toggle:</strong> Click the ☀️ button to switch between dark and light themes</li>
-        </ul>
+      <div class="controls">
+        <button id="panic-btn" title="Panic Button (Press = key)">🚨</button>
+        <button id="theme-toggle" title="Toggle Theme">🌙</button>
       </div>
-
-      <div class="categories">
-        <div class="category">
-          <h3 class="category-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-            Login Videos
-          </h3>
-          <div class="quick-links">
-            <button class="quick-btn" data-url="https://www.funimation.com">Funimation</button>
-            <button class="quick-btn" data-url="https://www.netflix.com">Netflix</button>
-            <button class="quick-btn" data-url="https://www.twitch.tv">Twitch</button>
-            <button class="quick-btn" data-url="https://aniwatch.to">AniWatch</button>
-            <button class="quick-btn" data-url="https://www.hulu.com">Hulu</button>
-          </div>
-        </div>
-
-        <div class="category">
-          <h3 class="category-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-            YouTube Alternatives
-          </h3>
-          <div class="quick-links">
-            <button class="quick-btn" data-url="https://odysee.com">Odysee</button>
-          </div>
-        </div>
-
-        <div class="category">
-          <h3 class="category-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-            Music
-          </h3>
-          <div class="quick-links">
-            <button class="quick-btn" data-url="https://www.soundcloud.com">SoundCloud</button>
-            <button class="quick-btn" data-url="https://music.apple.com">Apple Music</button>
-            <button class="quick-btn" data-url="https://bandcamp.com">Bandcamp</button>
-          </div>
-        </div>
-
-        <div class="category">
-          <h3 class="category-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-            Games
-          </h3>
-          <div class="quick-links">
-            <button class="quick-btn" data-url="https://www.roblox.com">Roblox</button>
-            <button class="quick-btn" data-url="https://poki.com">Poki</button>
-            <button class="quick-btn" data-url="https://www.crazygames.com">CrazyGames</button>
-            <button class="quick-btn" data-url="https://itch.io">itch.io</button>
-            <button class="quick-btn" data-url="https://www.miniclip.com">Miniclip</button>
-            <button class="quick-btn" data-url="https://www.coolmathgames.com">CoolMathGames</button>
-            <button class="quick-btn" data-url="https://store.steampowered.com">Steam</button>
-            <button class="quick-btn" data-url="https://www.kongregate.com">Kongregate</button>
-          </div>
-        </div>
-
-        <div class="category">
-          <h3 class="category-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            Social &amp; More
-          </h3>
-          <div class="quick-links">
-            <button class="quick-btn" data-url="https://www.reddit.com">Reddit</button>
-            <button class="quick-btn" data-url="https://twitter.com">Twitter/X</button>
-            <button class="quick-btn" data-url="https://www.instagram.com">Instagram</button>
-            <button class="quick-btn" data-url="https://discord.com">Discord</button>
-            <button class="quick-btn" data-url="https://www.google.com">Google</button>
-            <button class="quick-btn" data-url="https://www.wikipedia.org">Wikipedia</button>
-            <button class="quick-btn" data-url="https://www.tiktok.com">TikTok</button>
-            <button class="quick-btn" data-url="https://www.pinterest.com">Pinterest</button>
-          </div>
-        </div>
-      </div>
-
-      <div id="error-area" class="error-area" style="display:none;">
-        <p id="error-msg"></p>
-        <pre id="error-code"></pre>
-      </div>
-
-      <footer>
-        <span>BlackWave-Pro &mdash; Powered by HTTP Proxy</span>
-        <span class="footer-note">For educational and personal use only.</span>
-      </footer>
     </div>
 
-    <div id="browser-chrome" style="display:none;">
-      <div class="browser-toolbar">
-        <button id="btn-home" class="toolbar-btn" title="Home">🏠</button>
-        <button id="btn-back" class="toolbar-btn" title="Back">⬅️</button>
-        <button id="btn-reload" class="toolbar-btn" title="Reload">🔄</button>
-        <div class="url-bar-wrapper">
-          <form id="nav-form">
-            <input id="nav-input" type="text" placeholder="Enter URL or search..." autocomplete="off" spellcheck="false" />
-          </form>
-        </div>
-      </div>
-      <div id="frame-container" style="width:100%; height:calc(100vh - 60px);"></div>
+    <form id="proxy-form" class="search-container">
+      <input id="proxy-input" type="text" placeholder="Enter a URL or search term..." autocomplete="off">
+      <button type="submit" class="btn-go">Go</button>
+    </form>
+
+    <div class="info-box">
+      <h3>How to Use BlackWave-Pro</h3>
+      <p><strong>Search the Proxy:</strong> Enter a URL or search term in the search bar and click "Go" to browse through the proxy</p>
+      <p><strong>Watch Anime:</strong> Search for "9anime.to" in the search bar to access anime content</p>
+      <p><strong>Panic Button:</strong> Press the 🚨 button or "=" key anytime to quickly navigate to Google Classroom</p>
+      <p><strong>Theme Toggle:</strong> Click the 🌙 button to switch between dark and light themes</p>
     </div>
-  </body>
+
+    <div>
+      <h3 style="margin-bottom: 1rem; color: var(--primary);">Quick Links</h3>
+      <div class="quick-links">
+        <button class="quick-btn" data-url="https://funimation.com">
+          <span class="quick-btn-icon">🎬</span>
+          <span>Funimation</span>
+        </button>
+        <button class="quick-btn" data-url="https://netflix.com">
+          <span class="quick-btn-icon">📺</span>
+          <span>Netflix</span>
+        </button>
+        <button class="quick-btn" data-url="https://twitch.tv">
+          <span class="quick-btn-icon">🎮</span>
+          <span>Twitch</span>
+        </button>
+        <button class="quick-btn" data-url="https://aniwatch.to">
+          <span class="quick-btn-icon">✨</span>
+          <span>AniWatch</span>
+        </button>
+        <button class="quick-btn" data-url="https://hulu.com">
+          <span class="quick-btn-icon">🎥</span>
+          <span>Hulu</span>
+        </button>
+        <button class="quick-btn" data-url="https://odysee.com">
+          <span class="quick-btn-icon">📹</span>
+          <span>Odysee</span>
+        </button>
+        <button class="quick-btn" data-url="https://soundcloud.com">
+          <span class="quick-btn-icon">🎵</span>
+          <span>SoundCloud</span>
+        </button>
+        <button class="quick-btn" data-url="https://music.apple.com">
+          <span class="quick-btn-icon">🎶</span>
+          <span>Apple Music</span>
+        </button>
+        <button class="quick-btn" data-url="https://bandcamp.com">
+          <span class="quick-btn-icon">🎼</span>
+          <span>Bandcamp</span>
+        </button>
+        <button class="quick-btn" data-url="https://roblox.com">
+          <span class="quick-btn-icon">🎮</span>
+          <span>Roblox</span>
+        </button>
+        <button class="quick-btn" data-url="https://poki.com">
+          <span class="quick-btn-icon">🕹️</span>
+          <span>Poki</span>
+        </button>
+        <button class="quick-btn" data-url="https://crazygames.com">
+          <span class="quick-btn-icon">🎯</span>
+          <span>CrazyGames</span>
+        </button>
+        <button class="quick-btn" data-url="https://itch.io">
+          <span class="quick-btn-icon">🎲</span>
+          <span>itch.io</span>
+        </button>
+        <button class="quick-btn" data-url="https://miniclip.com">
+          <span class="quick-btn-icon">📱</span>
+          <span>Miniclip</span>
+        </button>
+        <button class="quick-btn" data-url="https://coolmathgames.com">
+          <span class="quick-btn-icon">🧮</span>
+          <span>CoolMathGames</span>
+        </button>
+        <button class="quick-btn" data-url="https://steampowered.com">
+          <span class="quick-btn-icon">🖥️</span>
+          <span>Steam</span>
+        </button>
+        <button class="quick-btn" data-url="https://kongregate.com">
+          <span class="quick-btn-icon">👾</span>
+          <span>Kongregate</span>
+        </button>
+        <button class="quick-btn" data-url="https://reddit.com">
+          <span class="quick-btn-icon">🔗</span>
+          <span>Reddit</span>
+        </button>
+        <button class="quick-btn" data-url="https://twitter.com">
+          <span class="quick-btn-icon">𝕏</span>
+          <span>Twitter/X</span>
+        </button>
+        <button class="quick-btn" data-url="https://instagram.com">
+          <span class="quick-btn-icon">📷</span>
+          <span>Instagram</span>
+        </button>
+        <button class="quick-btn" data-url="https://discord.com">
+          <span class="quick-btn-icon">💬</span>
+          <span>Discord</span>
+        </button>
+        <button class="quick-btn" data-url="https://google.com">
+          <span class="quick-btn-icon">🔍</span>
+          <span>Google</span>
+        </button>
+        <button class="quick-btn" data-url="https://wikipedia.org">
+          <span class="quick-btn-icon">📚</span>
+          <span>Wikipedia</span>
+        </button>
+        <button class="quick-btn" data-url="https://tiktok.com">
+          <span class="quick-btn-icon">🎵</span>
+          <span>TikTok</span>
+        </button>
+        <button class="quick-btn" data-url="https://pinterest.com">
+          <span class="quick-btn-icon">📌</span>
+          <span>Pinterest</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="footer">
+      BlackWave-Pro — Powered by HTTP Proxy<br>
+      For educational and personal use only
+    </div>
+  </div>
+
+  <div id="browser-chrome">
+    <div class="browser-toolbar">
+      <button id="btn-home" title="Home">🏠</button>
+      <button id="btn-back" title="Back">⬅️</button>
+      <button id="btn-forward" title="Forward">➡️</button>
+      <button id="btn-reload" title="Reload">🔄</button>
+      <input id="nav-input" type="text" placeholder="Enter URL or search..." autocomplete="off">
+      <button id="btn-fullscreen" title="Fullscreen">⛶</button>
+    </div>
+    <div id="error-area">
+      <div id="error-msg"></div>
+      <div id="error-code"></div>
+    </div>
+    <div id="frame-container"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
 </html>
