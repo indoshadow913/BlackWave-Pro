@@ -23,7 +23,7 @@
 		"@fastify/static": "^8.2.0",
 		"http-proxy": "^1.18.1",
 		"ws": "^8.18.3",
-		"scramjet": "^4.0.0"
+		"scramjet": "^0.36.0"
 	},
 	"devDependencies": {
 		"eslint": "^9.13.0",
