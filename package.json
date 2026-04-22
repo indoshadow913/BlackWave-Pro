@@ -27,8 +27,5 @@
 		"@mercuryworkshop/wisp-js": "^0.4.1",
 		"ws": "^8.18.3"
 	},
-	"devDependencies": {
-		"eslint": "^9.13.0",
-		"prettier": "^3.3.3"
-	}
+
 }
