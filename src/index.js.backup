@@ -7,14 +7,6 @@ import httpProxy from "http-proxy";
 
 const publicPath = fileURLToPath(new URL("../public/", import.meta.url));
 
-// Cookies de YouTube para evitar bloqueos
-const YOUTUBE_COOKIES = [
-  'CONSENT=YES+',
-  'ANID=',
-  'NID=',
-  'PREF=yt-player-bandwidth=',
-].join('; ');
-
 // Crear proxy HTTP
 const proxy = httpProxy.createProxyServer({
   changeOrigin: true,
@@ -22,20 +14,6 @@ const proxy = httpProxy.createProxyServer({
   timeout: 30000,
   proxyTimeout: 30000,
   ws: true,
-  onProxyReq: (proxyReq, req, res) => {
-    // Agregar headers para parecer un navegador real
-    proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
-    proxyReq.setHeader('Accept-Language', 'en-US,en;q=0.9');
-    proxyReq.setHeader('Accept-Encoding', 'gzip, deflate, br');
-    proxyReq.setHeader('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8');
-    proxyReq.setHeader('Referer', 'https://www.youtube.com/');
-    proxyReq.setHeader('DNT', '1');
-    
-    // Agregar cookies de YouTube
-    if (req.headers.host && req.headers.host.includes('youtube')) {
-      proxyReq.setHeader('Cookie', YOUTUBE_COOKIES);
-    }
-  },
 });
 
 // Manejar errores del proxy
@@ -61,12 +39,6 @@ const fastify = Fastify({
           const targetUrl = req.url.slice(7); // Remover "/proxy/"
           try {
             const decodedUrl = decodeURIComponent(targetUrl);
-            // Agregar headers de usuario real
-            req.headers['user-agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-            req.headers['accept-language'] = 'en-US,en;q=0.9';
-            req.headers['accept-encoding'] = 'gzip, deflate, br';
-            req.headers['accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8';
-            req.headers['dnt'] = '1';
             proxy.web(req, res, { target: decodedUrl });
           } catch (err) {
             res.writeHead(400, { "Content-Type": "application/json" });
