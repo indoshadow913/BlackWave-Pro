@@ -59,8 +59,48 @@ proxy.on("proxyRes", (proxyRes, req, res) => {
         const decodedUrl = decodeURIComponent(originalUrl);
         const baseUrl = new URL(decodedUrl).origin;
         
+        // Inyectar script para interceptar clicks y cambios de URL
+        const injectedScript = `
+        <script>
+          (function() {
+            const baseUrl = '${baseUrl}';
+            
+            // Interceptar clicks en links
+            document.addEventListener('click', function(e) {
+              if (e.target && e.target.tagName === 'A' && e.target.href) {
+                e.preventDefault();
+                let url = e.target.href;
+                if (!url.startsWith('javascript:') && !url.startsWith('data:')) {
+                  if (url.startsWith('/')) {
+                    url = baseUrl + url;
+                  } else if (!url.startsWith('http')) {
+                    url = baseUrl + '/' + url;
+                  }
+                  window.location.href = '/proxy/' + encodeURIComponent(url);
+                }
+              }
+            }, true);
+            
+            // Reescribir URLs en formularios
+            document.addEventListener('submit', function(e) {
+              if (e.target && e.target.action) {
+                let action = e.target.action;
+                if (!action.startsWith('javascript:') && !action.startsWith('data:')) {
+                  if (action.startsWith('/')) {
+                    action = baseUrl + action;
+                  } else if (!action.startsWith('http')) {
+                    action = baseUrl + '/' + action;
+                  }
+                  e.target.action = '/proxy/' + encodeURIComponent(action);
+                }
+              }
+            }, true);
+          })();
+        </script>
+        `;
+        
         // Reescribir href en links
-        html = html.replace(/href=["'](?!(?:javascript|data|#|\/\/))([^"']+)["']/gi, (match, url) => {
+        html = html.replace(/href=["'](?!(?:javascript|data|#|\/\/))([ ^"']+)["']/gi, (match, url) => {
           if (url.startsWith('http')) {
             return `href="/proxy/${encodeURIComponent(url)}"`;
           } else if (url.startsWith('/')) {
@@ -71,7 +111,7 @@ proxy.on("proxyRes", (proxyRes, req, res) => {
         });
         
         // Reescribir src en scripts e imágenes
-        html = html.replace(/src=["'](?!(?:javascript|data|#|\/\/))([^"']+)["']/gi, (match, url) => {
+        html = html.replace(/src=["'](?!(?:javascript|data|#|\/\/))([ ^"']+)["']/gi, (match, url) => {
           if (url.startsWith('http')) {
             return `src="/proxy/${encodeURIComponent(url)}"`;
           } else if (url.startsWith('/')) {
@@ -80,6 +120,15 @@ proxy.on("proxyRes", (proxyRes, req, res) => {
             return `src="/proxy/${encodeURIComponent(baseUrl + '/' + url)}"`;
           }
         });
+        
+        // Inyectar script antes del cierre de </head> o </body>
+        if (html.includes('</head>')) {
+          html = html.replace('</head>', injectedScript + '</head>');
+        } else if (html.includes('</body>')) {
+          html = html.replace('</body>', injectedScript + '</body>');
+        } else {
+          html += injectedScript;
+        }
         
         res.write(html);
         res.end();
