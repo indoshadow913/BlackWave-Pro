@@ -1,146 +1,67 @@
+import Fastify from "fastify";
+import fastifyStatic from "@fastify/static";
 import { fileURLToPath } from "url";
-import { createServer } from "http";
 import { dirname, join } from "path";
-import { readFileSync, existsSync } from "fs";
-import httpProxy from "http-proxy";
+import { Scramjet } from "scramjet";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const publicPath = join(__dirname, "../public");
 
-// Crear proxy HTTP
-const proxy = httpProxy.createProxyServer({
-  changeOrigin: true,
-  followRedirects: true,
-  timeout: 30000,
-  proxyTimeout: 30000,
-  ws: true,
-  onProxyReq: (proxyReq, req, res) => {
-    // Agregar headers para parecer un navegador real
-    proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0');
-    proxyReq.setHeader('Accept-Language', 'en-US,en;q=0.9,es;q=0.8');
-    proxyReq.setHeader('Accept-Encoding', 'gzip, deflate, br');
-    proxyReq.setHeader('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7');
-    proxyReq.setHeader('Sec-Ch-Ua', '"Not A(Brand";v="99", "Microsoft Edge";v="124"');
-    proxyReq.setHeader('Sec-Ch-Ua-Mobile', '?0');
-    proxyReq.setHeader('Sec-Ch-Ua-Platform', '"Windows"');
-    proxyReq.setHeader('Sec-Fetch-Dest', 'document');
-    proxyReq.setHeader('Sec-Fetch-Mode', 'navigate');
-    proxyReq.setHeader('Sec-Fetch-Site', 'none');
-    proxyReq.setHeader('Sec-Fetch-User', '?1');
-    proxyReq.setHeader('Upgrade-Insecure-Requests', '1');
-    proxyReq.setHeader('Cache-Control', 'max-age=0');
-    proxyReq.setHeader('DNT', '1');
-    proxyReq.setHeader('Connection', 'keep-alive');
-    proxyReq.setHeader('Pragma', 'no-cache');
-    proxyReq.setHeader('Referer', 'https://www.google.com/');
-    proxyReq.setHeader('Origin', 'https://www.google.com');
-    
-    // Remover headers que pueden identificar como proxy
-    proxyReq.removeHeader('X-Forwarded-For');
-    proxyReq.removeHeader('X-Forwarded-Proto');
-    proxyReq.removeHeader('X-Forwarded-Host');
-    proxyReq.removeHeader('X-Real-IP');
-  },
+const app = Fastify({
+  logger: true,
 });
 
-// Manejar errores del proxy
-proxy.on("error", (err, req, res) => {
-  console.error("Proxy error:", err);
-  res.writeHead(502, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ error: "Bad Gateway", message: err.message }));
+// Registrar plugin de archivos estáticos
+await app.register(fastifyStatic, {
+  root: join(__dirname, "../public"),
+  prefix: "/",
 });
 
-// Función para servir archivos estáticos
-function serveStatic(filePath, res) {
+// Crear instancia de Scramjet
+const scramjet = new Scramjet();
+
+// Ruta para proxy con Scramjet
+app.get("/proxy/:url", async (request, reply) => {
+  const url = request.params.url;
+  
   try {
-    const fullPath = join(publicPath, filePath);
-    if (existsSync(fullPath)) {
-      const content = readFileSync(fullPath);
-      const ext = filePath.split('.').pop();
-      const mimeTypes = {
-        html: 'text/html',
-        css: 'text/css',
-        js: 'application/javascript',
-        json: 'application/json',
-        png: 'image/png',
-        jpg: 'image/jpeg',
-        gif: 'image/gif',
-        svg: 'image/svg+xml',
-        ico: 'image/x-icon',
-      };
-      res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' });
-      res.end(content);
-      return true;
-    }
+    const decodedUrl = decodeURIComponent(url);
+    console.log("Proxying to:", decodedUrl);
+    
+    // Usar Scramjet para proxificar
+    const response = await scramjet.fetch(decodedUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
+    
+    const content = await response.text();
+    reply.type("text/html").send(content);
   } catch (err) {
-    console.error("Error serving static file:", err);
-  }
-  return false;
-}
-
-// Crear servidor HTTP
-const server = createServer((req, res) => {
-  // Headers de seguridad
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "*");
-  res.setHeader("Access-Control-Allow-Headers", "*");
-  
-  console.log(`${req.method} ${req.url}`);
-  
-  // Manejar peticiones de proxy
-  if (req.url.startsWith("/proxy/")) {
-    const targetUrl = req.url.slice(7); // Remover "/proxy/"
-    try {
-      const decodedUrl = decodeURIComponent(targetUrl);
-      console.log("Proxying to:", decodedUrl);
-      proxy.web(req, res, { target: decodedUrl });
-    } catch (err) {
-      console.error("Proxy error:", err);
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Invalid URL" }));
-    }
-  }
-  // Servir archivos estáticos
-  else if (req.url === "/" || req.url === "") {
-    serveStatic("index.html", res);
-  }
-  else if (req.url.startsWith("/")) {
-    const filePath = req.url.split("?")[0]; // Remover query string
-    if (!serveStatic(filePath, res)) {
-      // Si no existe el archivo, servir index.html (SPA)
-      serveStatic("index.html", res);
-    }
-  }
-  else {
-    res.writeHead(404, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "Not Found" }));
+    console.error("Proxy error:", err);
+    reply.status(400).send({ error: "Invalid URL" });
   }
 });
 
-// Manejar WebSocket upgrades
-server.on("upgrade", (req, socket, head) => {
-  if (req.url.startsWith("/proxy/")) {
-    const targetUrl = req.url.slice(7);
-    try {
-      const decodedUrl = decodeURIComponent(targetUrl);
-      proxy.ws(req, socket, head, { target: decodedUrl });
-    } catch (err) {
-      socket.end();
-    }
-  } else {
-    socket.end();
-  }
+// Ruta raíz
+app.get("/", async (request, reply) => {
+  reply.sendFile("index.html");
+});
+
+// Ruta 404
+app.setNotFoundHandler((request, reply) => {
+  reply.sendFile("index.html");
 });
 
 // Iniciar servidor
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on http://0.0.0.0:${PORT}`);
-});
+const start = async () => {
+  try {
+    await app.listen({ port: 3000, host: "0.0.0.0" });
+    console.log("BlackWave-Pro escuchando en puerto 3000");
+  } catch (err) {
+    app.log.error(err);
+    process.exit(1);
+  }
+};
 
-// Manejar errores del servidor
-server.on("error", (err) => {
-  console.error("Server error:", err);
-  process.exit(1);
-});
+start();
