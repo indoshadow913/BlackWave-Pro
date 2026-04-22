@@ -24,6 +24,16 @@ Object.assign(wisp.options, {
 	dns_servers: ["1.1.1.3", "1.0.0.3"],
 	headers: {
 		"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		"accept-language": "en-US,en;q=0.9",
+		"accept-encoding": "gzip, deflate, br",
+		"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+		"cache-control": "no-cache",
+		"pragma": "no-cache",
+		"sec-fetch-dest": "document",
+		"sec-fetch-mode": "navigate",
+		"sec-fetch-site": "none",
+		"upgrade-insecure-requests": "1",
+		"cookie": "CONSENT=YES+cb.20210328-17-p0.en+FX+410; PREF=yt-player-bandwidth=high&yt-player-version-ias=2.0&f6=8400&f7=100",
 	},
 });
 
