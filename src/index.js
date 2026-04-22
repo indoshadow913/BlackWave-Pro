@@ -80,10 +80,12 @@ proxy.on("proxyRes", (proxyRes, req, res) => {
             
             // Interceptar clicks en links
             document.addEventListener('click', function(e) {
-              if (e.target && e.target.tagName === 'A' && e.target.href) {
+              const link = e.target.closest('a');
+              if (link && link.href) {
                 e.preventDefault();
-                let url = e.target.href;
-                if (!url.startsWith('javascript:') && !url.startsWith('data:')) {
+                e.stopPropagation();
+                let url = link.href;
+                if (!url.startsWith('javascript:') && !url.startsWith('data:') && !url.startsWith('#')) {
                   if (url.startsWith('/')) {
                     url = baseUrl + url;
                   } else if (!url.startsWith('http')) {
