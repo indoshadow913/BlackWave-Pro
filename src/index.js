@@ -214,6 +214,11 @@ fastify.register(fastifyStatic, {
   decorateReply: true,
 });
 
+// Ruta raíz
+fastify.get("/", (request, reply) => {
+  return reply.sendFile("index.html");
+});
+
 // Ruta para servir index.html en rutas no encontradas (SPA fallback)
 fastify.setNotFoundHandler((request, reply) => {
   return reply.sendFile("index.html");
