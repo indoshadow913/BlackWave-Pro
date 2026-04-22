@@ -15,8 +15,10 @@
       --primary: #8b5cf6;
       --primary-dark: #7c3aed;
       --primary-light: #a78bfa;
-      --bg-dark: #1a1a2e;
-      --bg-light: #16213e;
+      --secondary: #ec4899;
+      --bg-dark: #0f0f1e;
+      --bg-light: #1a1a2e;
+      --bg-lighter: #252541;
       --text-primary: #ffffff;
       --text-secondary: #b0b0b0;
       --border: #2d2d4a;
@@ -27,8 +29,10 @@
       --primary: #7c3aed;
       --primary-dark: #6d28d9;
       --primary-light: #a78bfa;
-      --bg-dark: #f5f5f5;
+      --secondary: #ec4899;
+      --bg-dark: #f8f8fc;
       --bg-light: #ffffff;
+      --bg-lighter: #f0f0f8;
       --text-primary: #1a1a1a;
       --text-secondary: #666666;
       --border: #e0e0e0;
@@ -46,8 +50,8 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
-      background: linear-gradient(135deg, var(--bg-dark) 0%, #2d1b4e 100%);
-      padding: 2rem;
+      background: linear-gradient(135deg, var(--bg-dark) 0%, #1a0f3a 50%, var(--bg-dark) 100%);
+      padding: 2.5rem;
       gap: 2rem;
       overflow-y: auto;
     }
@@ -60,25 +64,37 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1rem;
+      margin-bottom: 1.5rem;
+      background: rgba(139, 92, 246, 0.05);
+      padding: 1.5rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      backdrop-filter: blur(10px);
     }
 
     .logo {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 1.5rem;
-      font-weight: bold;
+      gap: 0.75rem;
+      font-size: 1.8rem;
+      font-weight: 700;
       color: var(--primary);
+      letter-spacing: -0.5px;
     }
 
     .logo-icon {
-      font-size: 2rem;
+      font-size: 2.5rem;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
     }
 
     .controls {
       display: flex;
-      gap: 1rem;
+      gap: 0.75rem;
     }
 
     button {
@@ -86,20 +102,22 @@
       color: white;
       border: none;
       padding: 0.5rem 1rem;
-      border-radius: 0.5rem;
+      border-radius: 0.75rem;
       cursor: pointer;
       font-size: 1.5rem;
       transition: all 0.3s ease;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 2.5rem;
-      height: 2.5rem;
+      width: 2.75rem;
+      height: 2.75rem;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
     }
 
     button:hover {
       background: var(--primary-dark);
-      transform: scale(1.05);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
     }
 
     button:active {
@@ -107,38 +125,43 @@
     }
 
     #panic-btn {
-      background: var(--accent);
+      background: var(--secondary);
+      box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
     }
 
     #panic-btn:hover {
-      background: #ec4899;
+      background: #d1367a;
+      box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
     }
 
     #theme-toggle {
       background: var(--primary-light);
+      box-shadow: 0 4px 15px rgba(167, 139, 250, 0.3);
     }
 
     .search-container {
       display: flex;
-      gap: 0.5rem;
-      max-width: 600px;
+      gap: 0.75rem;
+      max-width: 700px;
+      margin-bottom: 1rem;
     }
 
     input {
       flex: 1;
-      padding: 1rem;
-      border: 2px solid var(--primary);
-      border-radius: 0.5rem;
+      padding: 1.2rem 1.5rem;
+      border: 2px solid var(--border);
+      border-radius: 0.75rem;
       background: var(--bg-light);
       color: var(--text-primary);
       font-size: 1rem;
-      transition: border-color 0.3s ease;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     }
 
     input:focus {
       outline: none;
-      border-color: var(--primary-light);
-      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
     }
 
     input::placeholder {
@@ -146,65 +169,95 @@
     }
 
     .btn-go {
-      padding: 1rem 2rem;
+      padding: 1.2rem 2.5rem;
       font-size: 1rem;
-      font-weight: bold;
-      background: var(--primary);
-      border-radius: 0.5rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      border-radius: 0.75rem;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
     }
 
     .btn-go:hover {
-      background: var(--primary-dark);
+      background: linear-gradient(135deg, var(--primary-dark) 0%, #d1367a 100%);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
     }
 
     .info-box {
-      background: rgba(139, 92, 246, 0.1);
-      border-left: 4px solid var(--primary);
-      padding: 1.5rem;
-      border-radius: 0.5rem;
-      margin-bottom: 2rem;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      padding: 2rem;
+      border-radius: 1rem;
+      margin-bottom: 1.5rem;
+      backdrop-filter: blur(10px);
     }
 
     .info-box h3 {
       color: var(--primary);
-      margin-bottom: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
     }
 
     .info-box p {
       color: var(--text-secondary);
-      line-height: 1.6;
+      line-height: 1.8;
+      margin-bottom: 0.75rem;
+    }
+
+    .info-box p:last-child {
+      margin-bottom: 0;
+    }
+
+    .info-box strong {
+      color: var(--text-primary);
+    }
+
+    .quick-links-section {
+      margin-top: 1rem;
+    }
+
+    .quick-links-section h3 {
+      margin-bottom: 1.5rem;
+      color: var(--primary);
+      font-size: 1.3rem;
     }
 
     .quick-links {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 1rem;
       margin-bottom: 2rem;
     }
 
     .quick-btn {
-      padding: 1rem;
+      padding: 1.25rem 1rem;
       background: var(--bg-light);
       border: 2px solid var(--border);
-      border-radius: 0.5rem;
+      border-radius: 0.75rem;
       color: var(--text-primary);
       cursor: pointer;
-      font-weight: 500;
+      font-weight: 600;
       transition: all 0.3s ease;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.75rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     }
 
     .quick-btn:hover {
       border-color: var(--primary);
-      background: rgba(139, 92, 246, 0.1);
-      transform: translateY(-2px);
+      background: rgba(139, 92, 246, 0.15);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.2);
     }
 
     .quick-btn-icon {
-      font-size: 1.5rem;
+      font-size: 2rem;
+      transition: transform 0.3s ease;
+    }
+
+    .quick-btn:hover .quick-btn-icon {
+      transform: scale(1.15);
     }
 
     #browser-chrome {
@@ -216,25 +269,41 @@
 
     .browser-toolbar {
       display: flex;
-      gap: 0.5rem;
-      padding: 0.5rem;
+      gap: 0.75rem;
+      padding: 1rem;
       background: var(--bg-light);
       border-bottom: 1px solid var(--border);
       align-items: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
 
     .browser-toolbar button {
-      width: 2rem;
-      height: 2rem;
+      width: 2.25rem;
+      height: 2.25rem;
       padding: 0;
       font-size: 1rem;
+      box-shadow: none;
+    }
+
+    .browser-toolbar button:hover {
+      box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
     }
 
     .browser-toolbar input {
       flex: 1;
-      padding: 0.5rem;
-      font-size: 0.9rem;
+      padding: 0.75rem 1rem;
+      font-size: 0.95rem;
       border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      background: var(--bg-lighter);
+      color: var(--text-primary);
+      transition: all 0.3s ease;
+    }
+
+    .browser-toolbar input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
     }
 
     #frame-container {
@@ -245,15 +314,16 @@
     #error-area {
       display: none;
       background: rgba(236, 72, 153, 0.1);
-      border: 1px solid var(--accent);
-      padding: 1rem;
+      border: 1px solid var(--secondary);
+      padding: 1.5rem;
       margin: 1rem;
-      border-radius: 0.5rem;
+      border-radius: 0.75rem;
     }
 
     #error-msg {
-      color: var(--accent);
+      color: var(--secondary);
       font-weight: bold;
+      font-size: 1.1rem;
     }
 
     #error-code {
@@ -265,22 +335,40 @@
     .footer {
       text-align: center;
       color: var(--text-secondary);
-      padding: 1rem;
+      padding: 1.5rem;
       font-size: 0.9rem;
       border-top: 1px solid var(--border);
+      margin-top: auto;
     }
 
     @media (max-width: 768px) {
       #home-screen {
-        padding: 1rem;
+        padding: 1.5rem;
+        gap: 1.5rem;
+      }
+
+      .header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
       }
 
       .quick-links {
-        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 0.75rem;
       }
 
       .search-container {
         flex-direction: column;
+        max-width: 100%;
+      }
+
+      .btn-go {
+        width: 100%;
+      }
+
+      .logo {
+        font-size: 1.5rem;
       }
     }
   </style>
@@ -304,15 +392,15 @@
     </form>
 
     <div class="info-box">
-      <h3>How to Use BlackWave-Pro</h3>
-      <p><strong>Search the Proxy:</strong> Enter a URL or search term in the search bar and click "Go" to browse through the proxy</p>
-      <p><strong>Watch Anime:</strong> Search for "9anime.to" in the search bar to access anime content</p>
-      <p><strong>Panic Button:</strong> Press the 🚨 button or "=" key anytime to quickly navigate to Google Classroom</p>
-      <p><strong>Theme Toggle:</strong> Click the 🌙 button to switch between dark and light themes</p>
+      <h3>📖 How to Use BlackWave-Pro</h3>
+      <p><strong>🔍 Search the Proxy:</strong> Enter a URL or search term in the search bar and click "Go" to browse through the proxy</p>
+      <p><strong>🎬 Watch Anime:</strong> Search for "9anime.to" in the search bar to access anime content</p>
+      <p><strong>🚨 Panic Button:</strong> Press the 🚨 button or "=" key anytime to quickly navigate to Google Classroom</p>
+      <p><strong>🌙 Theme Toggle:</strong> Click the 🌙 button to switch between dark and light themes</p>
     </div>
 
-    <div>
-      <h3 style="margin-bottom: 1rem; color: var(--primary);">Quick Links</h3>
+    <div class="quick-links-section">
+      <h3>⚡ Quick Links</h3>
       <div class="quick-links">
         <button class="quick-btn" data-url="https://funimation.com">
           <span class="quick-btn-icon">🎬</span>
@@ -418,7 +506,7 @@
     </div>
 
     <div class="footer">
-      BlackWave-Pro — Powered by HTTP Proxy<br>
+      🌊 BlackWave-Pro — Powered by HTTP Proxy<br>
       For educational and personal use only
     </div>
   </div>
