@@ -27,6 +27,35 @@ function getRandomUserAgent() {
 	return userAgents[Math.floor(Math.random() * userAgents.length)];
 }
 
+// YouTube Embed URL Converter
+function convertToYouTubeEmbed(url) {
+	try {
+		const urlObj = new URL(url);
+		const hostname = urlObj.hostname.toLowerCase();
+		
+		// Check if it's a YouTube URL
+		if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+			let videoId = null;
+			
+			// Extract video ID from different YouTube URL formats
+			if (hostname.includes('youtu.be')) {
+				videoId = urlObj.pathname.slice(1).split('?')[0];
+			} else if (urlObj.searchParams.has('v')) {
+				videoId = urlObj.searchParams.get('v');
+			}
+			
+			if (videoId) {
+				// Return embed URL
+				return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1`;
+			}
+		}
+	} catch (e) {
+		// Not a valid URL, return as-is
+	}
+	
+	return url;
+}
+
 // Wisp Configuration: Refer to the documentation at https://www.npmjs.com/package/@mercuryworkshop/wisp-js
 
 // Wisp logging is not available in this version
@@ -34,19 +63,21 @@ Object.assign(wisp.options, {
 	allow_udp_streams: false,
 	hostname_blacklist: [/example\.com/],
 	dns_servers: ["1.1.1.3", "1.0.0.3"],
-	headers: {
-		"user-agent": getRandomUserAgent(),
-		"accept-language": "en-US,en;q=0.9",
-		"accept-encoding": "gzip, deflate, br",
-		"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-		"cache-control": "no-cache",
-		"pragma": "no-cache",
-		"sec-fetch-dest": "document",
-		"sec-fetch-mode": "navigate",
-		"sec-fetch-site": "none",
-		"upgrade-insecure-requests": "1",
-		"cookie": "CONSENT=YES+cb.20210328-17-p0.en+FX+410; PREF=yt-player-bandwidth=high&yt-player-version-ias=2.0&f6=8400&f7=100",
-	},
+		headers: {
+			"user-agent": getRandomUserAgent(),
+			"accept-language": "en-US,en;q=0.9",
+			"accept-encoding": "gzip, deflate, br",
+			"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+			"cache-control": "no-cache",
+			"pragma": "no-cache",
+			"sec-fetch-dest": "document",
+			"sec-fetch-mode": "navigate",
+			"sec-fetch-site": "none",
+			"upgrade-insecure-requests": "1",
+			"cookie": "CONSENT=YES+cb.20210328-17-p0.en+FX+410; PREF=yt-player-bandwidth=high&yt-player-version-ias=2.0&f6=8400&f7=100; VISITOR_INFO1_LIVE=abc123; YSC=abc123",
+			"referer": "https://www.youtube.com/",
+			"origin": "https://www.youtube.com",
+		},
 });
 
 const fastify = Fastify({

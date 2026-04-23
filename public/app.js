@@ -83,7 +83,29 @@ async function navigate(rawUrl) {
     return;
   }
 
-  const url = search(rawUrl, "https://www.google.com/search?q=%s");
+  let url = search(rawUrl, "https://www.google.com/search?q=%s");
+  
+  // Convert YouTube URLs to embed format
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    
+    if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+      let videoId = null;
+      
+      if (hostname.includes('youtu.be')) {
+        videoId = urlObj.pathname.slice(1).split('?')[0];
+      } else if (urlObj.searchParams.has('v')) {
+        videoId = urlObj.searchParams.get('v');
+      }
+      
+      if (videoId) {
+        url = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1`;
+      }
+    }
+  } catch (e) {
+    // Not a valid URL, use as-is
+  }
 
   try {
     await ensureTransport();
