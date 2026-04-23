@@ -13,6 +13,25 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const { baremuxPath } = require("@mercuryworkshop/bare-mux/node");
 
+import { exec } from "child_process";
+import { promisify } from "util";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const execAsync = promisify(exec);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const downloadDir = path.join(__dirname, "../public/downloads");
+
+// Crear directorio de descargas si no existe
+try {
+	await fs.mkdir(downloadDir, { recursive: true });
+} catch (err) {
+	console.error("Error creating download directory:", err);
+}
+
 const publicPath = fileURLToPath(new URL("../public/", import.meta.url));
 
 const userAgents = [
@@ -80,7 +99,76 @@ fastify.register(fastifyStatic, {
 fastify.register(fastifyStatic, {
 	root: baremuxPath,
 	prefix: "/baremux/",
-	decorateReply: false,
+	decoratereply: false,
+});
+
+// Ruta para obtener información de video de YouTube
+fastify.post("/api/youtube/info", async (request, reply) => {
+	try {
+		const { url } = request.body;
+		if (!url) {
+			return reply.code(400).send({ error: "URL is required" });
+		}
+
+		const command = `yt-dlp -j "${url}" 2>/dev/null`;
+		const { stdout } = await execAsync(command);
+		const videoInfo = JSON.parse(stdout);
+
+		return reply.send({
+			title: videoInfo.title,
+			duration: videoInfo.duration,
+			thumbnail: videoInfo.thumbnail,
+			uploader: videoInfo.uploader,
+			formats: videoInfo.formats ? videoInfo.formats.length : 0,
+		});
+	} catch (error) {
+		console.error("Error getting video info:", error.message);
+		return reply.code(500).send({ error: "Failed to get video info" });
+	}
+});
+
+// Ruta para descargar video de YouTube
+fastify.post("/api/youtube/download", async (request, reply) => {
+	try {
+		const { url, format } = request.body;
+		if (!url) {
+			return reply.code(400).send({ error: "URL is required" });
+		}
+
+		const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
+		const outputPath = path.join(downloadDir, `${videoId}.mp4`);
+
+		const formatOption = format === "audio" ? "-f bestaudio -x --audio-format mp3" : "-f best";
+		const command = `yt-dlp ${formatOption} -o "${outputPath}" "${url}" 2>&1`;
+
+		await execAsync(command);
+
+		return reply.send({
+			success: true,
+			downloadUrl: `/downloads/${videoId}.${format === "audio" ? "mp3" : "mp4"}`,
+			message: "Download started",
+		});
+	} catch (error) {
+		console.error("Error downloading video:", error.message);
+		return reply.code(500).send({ error: "Failed to download video" });
+	}
+});
+
+// Servir archivos descargados
+fastify.register(fastifyStatic, {
+	root: downloadDir,
+	prefix: "/downloads/",
+	decoratereply: false,
+});
+
+// Ruta de prueba para yt-dlp
+fastify.get("/api/youtube/test", async (request, reply) => {
+	try {
+		const { stdout } = await execAsync("yt-dlp --version");
+		return reply.send({ status: "yt-dlp is working", version: stdout.trim() });
+	} catch (error) {
+		return reply.code(500).send({ error: "yt-dlp is not installed" });
+	}
 });
 
 fastify.setNotFoundHandler((res, reply) => {

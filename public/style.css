@@ -434,3 +434,122 @@ footer a:hover { text-decoration: underline; }
 
   .toolbar-btn svg { width: 16px; height: 16px; }
 }
+
+
+/* ── YOUTUBE DOWNLOADER ── */
+.youtube-downloader {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+}
+
+.youtube-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.youtube-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.youtube-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.youtube-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #FF0000, #FF6B00);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.youtube-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
+}
+
+.youtube-btn:active {
+  transform: translateY(0);
+}
+
+.youtube-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.youtube-result {
+  padding: 12px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--accent2);
+}
+
+.youtube-result h4 {
+  margin-bottom: 8px;
+  color: var(--accent2);
+}
+
+.youtube-result p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.youtube-result a {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--accent2);
+  color: white;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.youtube-result a:hover {
+  background: var(--accent);
+}
+
+.youtube-error {
+  padding: 12px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--danger);
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.youtube-loading {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

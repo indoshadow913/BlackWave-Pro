@@ -225,3 +225,176 @@ if (savedTheme === "dark") {
 }
 
 themeToggle.addEventListener("click", toggleTheme);
+
+
+// ── YouTube Downloader ────────────────────────────────────────────────────────
+const youtubeDownloaderBtn = document.getElementById("youtube-downloader-btn");
+const youtubeDownloaderSection = document.getElementById("youtube-downloader-section");
+const youtubeUrlInput = document.getElementById("youtube-url-input");
+const youtubeDownloadBtn = document.getElementById("youtube-download-btn");
+const youtubeAudioBtn = document.getElementById("youtube-audio-btn");
+const youtubeInfoBtn = document.getElementById("youtube-info-btn");
+const youtubeResult = document.getElementById("youtube-result");
+const youtubeError = document.getElementById("youtube-error");
+
+// Toggle YouTube downloader section
+youtubeDownloaderBtn.addEventListener("click", () => {
+  const isVisible = youtubeDownloaderSection.style.display !== "none";
+  youtubeDownloaderSection.style.display = isVisible ? "none" : "block";
+  if (!isVisible) {
+    youtubeUrlInput.focus();
+  }
+});
+
+// Helper function to show result
+function showYoutubeResult(html) {
+  youtubeResult.innerHTML = html;
+  youtubeResult.style.display = "block";
+  youtubeError.style.display = "none";
+}
+
+// Helper function to show error
+function showYoutubeError(message) {
+  youtubeError.textContent = "❌ " + message;
+  youtubeError.style.display = "block";
+  youtubeResult.style.display = "none";
+}
+
+// Helper function to disable buttons
+function setButtonsDisabled(disabled) {
+  youtubeDownloadBtn.disabled = disabled;
+  youtubeAudioBtn.disabled = disabled;
+  youtubeInfoBtn.disabled = disabled;
+}
+
+// Get video info
+youtubeInfoBtn.addEventListener("click", async () => {
+  const url = youtubeUrlInput.value.trim();
+  if (!url) {
+    showYoutubeError("Please paste a YouTube URL");
+    return;
+  }
+
+  setButtonsDisabled(true);
+  showYoutubeResult(`<p><span class="youtube-loading"></span> Getting video info...</p>`);
+
+  try {
+    const response = await fetch("/api/youtube/info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.error) {
+      showYoutubeError(data.error);
+    } else {
+      const html = `
+        <h4>📺 Video Info</h4>
+        <p><strong>Title:</strong> ${data.title || "N/A"}</p>
+        <p><strong>Duration:</strong> ${data.duration ? Math.floor(data.duration / 60) + " min" : "N/A"}</p>
+        <p><strong>Uploader:</strong> ${data.uploader || "N/A"}</p>
+        <p><strong>Available Formats:</strong> ${data.formats || "N/A"}</p>
+      `;
+      showYoutubeResult(html);
+    }
+  } catch (error) {
+    showYoutubeError(error.message || "Failed to get video info");
+  } finally {
+    setButtonsDisabled(false);
+  }
+});
+
+// Download video
+youtubeDownloadBtn.addEventListener("click", async () => {
+  const url = youtubeUrlInput.value.trim();
+  if (!url) {
+    showYoutubeError("Please paste a YouTube URL");
+    return;
+  }
+
+  setButtonsDisabled(true);
+  showYoutubeResult(`<p><span class="youtube-loading"></span> Downloading video...</p>`);
+
+  try {
+    const response = await fetch("/api/youtube/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, format: "video" }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.error) {
+      showYoutubeError(data.error);
+    } else {
+      const html = `
+        <h4>✅ Download Complete!</h4>
+        <p>${data.message}</p>
+        <a href="${data.downloadUrl}" download>📥 Download Video</a>
+      `;
+      showYoutubeResult(html);
+    }
+  } catch (error) {
+    showYoutubeError(error.message || "Failed to download video");
+  } finally {
+    setButtonsDisabled(false);
+  }
+});
+
+// Download audio
+youtubeAudioBtn.addEventListener("click", async () => {
+  const url = youtubeUrlInput.value.trim();
+  if (!url) {
+    showYoutubeError("Please paste a YouTube URL");
+    return;
+  }
+
+  setButtonsDisabled(true);
+  showYoutubeResult(`<p><span class="youtube-loading"></span> Downloading audio...</p>`);
+
+  try {
+    const response = await fetch("/api/youtube/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, format: "audio" }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.error) {
+      showYoutubeError(data.error);
+    } else {
+      const html = `
+        <h4>✅ Download Complete!</h4>
+        <p>${data.message}</p>
+        <a href="${data.downloadUrl}" download>🎵 Download Audio</a>
+      `;
+      showYoutubeResult(html);
+    }
+  } catch (error) {
+    showYoutubeError(error.message || "Failed to download audio");
+  } finally {
+    setButtonsDisabled(false);
+  }
+});
+
+// Allow Enter key to trigger download
+youtubeUrlInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    youtubeDownloadBtn.click();
+  }
+});
