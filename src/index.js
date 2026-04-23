@@ -89,19 +89,7 @@ fastify.register(fastifyStatic, {
 
 // No necesitamos servir descargas locales (usamos API externa)
 
-// Ruta de prueba para API de yt-dlp
-fastify.get("/api/youtube/test", async (request, reply) => {
-	try {
-		const response = await fetch("https://yt-dlp-api.herokuapp.com/info?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-		if (response.ok) {
-			return reply.send({ status: "YouTube API is working", service: "yt-dlp-api" });
-		}
-	} catch (error) {
-		return reply.code(500).send({ error: "YouTube API is unavailable" });
-	}
-});
-
-// Ruta para obtener información de video de YouTube
+// Ruta para obtener información de video de YouTube usando cobalt.tools
 fastify.post("/api/youtube/info", async (request, reply) => {
 	try {
 		const { url } = request.body;
@@ -109,11 +97,15 @@ fastify.post("/api/youtube/info", async (request, reply) => {
 			return reply.code(400).send({ error: "URL is required" });
 		}
 
-		const apiUrl = `https://yt-dlp-api.herokuapp.com/info?url=${encodeURIComponent(url)}`;
-		const apiResponse = await fetch(apiUrl);
+		// Llamar a cobalt.tools API
+		const apiResponse = await fetch("https://api.cobalt.tools/api/info", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ url }),
+		});
 
 		if (!apiResponse.ok) {
-			throw new Error("Failed to fetch video info from API");
+			throw new Error("Failed to fetch video info from cobalt.tools");
 		}
 
 		const videoInfo = await apiResponse.json();
@@ -122,7 +114,7 @@ fastify.post("/api/youtube/info", async (request, reply) => {
 			title: videoInfo.title || "Unknown",
 			duration: videoInfo.duration || 0,
 			thumbnail: videoInfo.thumbnail || null,
-			uploader: videoInfo.uploader || "Unknown",
+			uploader: videoInfo.author || "Unknown",
 			formats: videoInfo.formats ? Object.keys(videoInfo.formats).length : 0,
 		});
 	} catch (error) {
@@ -131,7 +123,7 @@ fastify.post("/api/youtube/info", async (request, reply) => {
 	}
 });
 
-// Ruta para descargar video de YouTube
+// Ruta para descargar video de YouTube usando cobalt.tools
 fastify.post("/api/youtube/download", async (request, reply) => {
 	try {
 		const { url, format } = request.body;
@@ -139,14 +131,29 @@ fastify.post("/api/youtube/download", async (request, reply) => {
 			return reply.code(400).send({ error: "URL is required" });
 		}
 
-		const formatParam = format === "audio" ? "audio" : "video";
-		const apiUrl = `https://yt-dlp-api.herokuapp.com/download?url=${encodeURIComponent(url)}&format=${formatParam}`;
+		// Llamar a cobalt.tools API para obtener el enlace de descarga
+		const apiResponse = await fetch("https://api.cobalt.tools/api/json", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ 
+				url,
+				audioFormat: format === "audio" ? "mp3" : null,
+				videoFormat: format === "video" ? "mp4" : null,
+				filenameStyle: "pretty"
+			}),
+		});
+
+		if (!apiResponse.ok) {
+			throw new Error("Failed to get download link from cobalt.tools");
+		}
+
+		const downloadInfo = await apiResponse.json();
 
 		return reply.send({
 			success: true,
-			downloadUrl: apiUrl,
+			downloadUrl: downloadInfo.url || downloadInfo.link,
 			message: "Download link ready",
-			service: "yt-dlp-api"
+			service: "cobalt.tools"
 		});
 	} catch (error) {
 		console.error("Error downloading video:", error.message);
