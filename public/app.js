@@ -220,3 +220,36 @@ if (savedTheme === "dark") {
 }
 
 themeToggle.addEventListener("click", toggleTheme);
+
+
+// ── CATEGORY NAVIGATION ────────────────────────────────────────────────────────
+const navButtons = document.querySelectorAll(".nav-btn");
+const categories = document.querySelectorAll(".category");
+
+navButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const categoryName = btn.getAttribute("data-category");
+    
+    // Update active button
+    navButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    
+    // Show/hide categories
+    categories.forEach(cat => {
+      const catName = cat.getAttribute("data-category");
+      cat.style.display = catName === categoryName ? "block" : "none";
+    });
+  });
+});
+
+// ── CARD CLICK HANDLER ────────────────────────────────────────────────────────
+const cards = document.querySelectorAll(".card");
+cards.forEach(card => {
+  card.addEventListener("click", () => {
+    const url = card.getAttribute("data-url");
+    if (url) {
+      proxyInput.value = url;
+      proxyForm.dispatchEvent(new Event("submit"));
+    }
+  });
+});
