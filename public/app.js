@@ -83,29 +83,10 @@ async function navigate(rawUrl) {
     return;
   }
 
-  let url = search(rawUrl, "https://www.google.com/search?q=%s");
+  const url = search(rawUrl, "https://www.google.com/search?q=%s");
   
-  // Convert YouTube URLs to embed format
-  try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname.toLowerCase();
-    
-    if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
-      let videoId = null;
-      
-      if (hostname.includes('youtu.be')) {
-        videoId = urlObj.pathname.slice(1).split('?')[0];
-      } else if (urlObj.searchParams.has('v')) {
-        videoId = urlObj.searchParams.get('v');
-      }
-      
-      if (videoId) {
-        url = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1`;
-      }
-    }
-  } catch (e) {
-    // Not a valid URL, use as-is
-  }
+  // Note: YouTube blocking is a known limitation due to bot detection
+  // Consider using Invidious or Piped as alternatives
 
   try {
     await ensureTransport();
