@@ -15,6 +15,18 @@ const { baremuxPath } = require("@mercuryworkshop/bare-mux/node");
 
 const publicPath = fileURLToPath(new URL("../public/", import.meta.url));
 
+const userAgents = [
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+];
+
+function getRandomUserAgent() {
+	return userAgents[Math.floor(Math.random() * userAgents.length)];
+}
+
 // Wisp Configuration: Refer to the documentation at https://www.npmjs.com/package/@mercuryworkshop/wisp-js
 
 // Wisp logging is not available in this version
@@ -23,7 +35,7 @@ Object.assign(wisp.options, {
 	hostname_blacklist: [/example\.com/],
 	dns_servers: ["1.1.1.3", "1.0.0.3"],
 	headers: {
-		"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		"user-agent": getRandomUserAgent(),
 		"accept-language": "en-US,en;q=0.9",
 		"accept-encoding": "gzip, deflate, br",
 		"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
