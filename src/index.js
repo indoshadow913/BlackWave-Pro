@@ -87,79 +87,7 @@ fastify.register(fastifyStatic, {
 	decorateReply: false,
 });
 
-// No necesitamos servir descargas locales (usamos API externa)
 
-// Ruta para obtener información de video de YouTube usando cobalt.tools
-fastify.post("/api/youtube/info", async (request, reply) => {
-	try {
-		const { url } = request.body;
-		if (!url) {
-			return reply.code(400).send({ error: "URL is required" });
-		}
-
-		// Llamar a cobalt.tools API
-		const apiResponse = await fetch("https://api.cobalt.tools/api/info", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ url }),
-		});
-
-		if (!apiResponse.ok) {
-			throw new Error("Failed to fetch video info from cobalt.tools");
-		}
-
-		const videoInfo = await apiResponse.json();
-
-		return reply.send({
-			title: videoInfo.title || "Unknown",
-			duration: videoInfo.duration || 0,
-			thumbnail: videoInfo.thumbnail || null,
-			uploader: videoInfo.author || "Unknown",
-			formats: videoInfo.formats ? Object.keys(videoInfo.formats).length : 0,
-		});
-	} catch (error) {
-		console.error("Error getting video info:", error.message);
-		return reply.code(500).send({ error: "Failed to get video info", details: error.message });
-	}
-});
-
-// Ruta para descargar video de YouTube usando cobalt.tools
-fastify.post("/api/youtube/download", async (request, reply) => {
-	try {
-		const { url, format } = request.body;
-		if (!url) {
-			return reply.code(400).send({ error: "URL is required" });
-		}
-
-		// Llamar a cobalt.tools API para obtener el enlace de descarga
-		const apiResponse = await fetch("https://api.cobalt.tools/api/json", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ 
-				url,
-				audioFormat: format === "audio" ? "mp3" : null,
-				videoFormat: format === "video" ? "mp4" : null,
-				filenameStyle: "pretty"
-			}),
-		});
-
-		if (!apiResponse.ok) {
-			throw new Error("Failed to get download link from cobalt.tools");
-		}
-
-		const downloadInfo = await apiResponse.json();
-
-		return reply.send({
-			success: true,
-			downloadUrl: downloadInfo.url || downloadInfo.link,
-			message: "Download link ready",
-			service: "cobalt.tools"
-		});
-	} catch (error) {
-		console.error("Error downloading video:", error.message);
-		return reply.code(500).send({ error: "Failed to download video", details: error.message });
-	}
-});
 
 fastify.setNotFoundHandler((res, reply) => {
 	return reply.code(404).type("text/html").sendFile("404.html");
