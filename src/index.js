@@ -87,11 +87,7 @@ fastify.register(fastifyStatic, {
 	decorateReply: false,
 });
 
-fastify.register(fastifyStatic, {
-	root: downloadDir,
-	prefix: "/downloads/",
-	decorateReply: false,
-});
+// No necesitamos servir descargas locales (usamos API externa)
 
 // Ruta de prueba para API de cobalt.tools
 fastify.get("/api/youtube/test", async (request, reply) => {
