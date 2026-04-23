@@ -17,7 +17,6 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
 import { dirname } from "path";
 
 const execAsync = promisify(exec);
@@ -46,21 +45,18 @@ function getRandomUserAgent() {
 	return userAgents[Math.floor(Math.random() * userAgents.length)];
 }
 
-
-
 // Wisp Configuration: Refer to the documentation at https://www.npmjs.com/package/@mercuryworkshop/wisp-js
-
 // Wisp logging is not available in this version
 Object.assign(wisp.options, {
 	allow_udp_streams: false,
 	hostname_blacklist: [/example\.com/],
 	dns_servers: ["1.1.1.3", "1.0.0.3"],
-		headers: {
-			"user-agent": getRandomUserAgent(),
-			"accept-language": "en-US,en;q=0.9",
-			"accept-encoding": "gzip, deflate, br",
-			"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-		},
+	headers: {
+		"user-agent": getRandomUserAgent(),
+		"accept-language": "en-US,en;q=0.9",
+		"accept-encoding": "gzip, deflate, br",
+		"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+	},
 });
 
 const fastify = Fastify({
@@ -81,7 +77,7 @@ const fastify = Fastify({
 
 fastify.register(fastifyStatic, {
 	root: publicPath,
-	decorateReply: true,
+	decorateReply: false,
 });
 
 fastify.register(fastifyStatic, {
@@ -99,7 +95,23 @@ fastify.register(fastifyStatic, {
 fastify.register(fastifyStatic, {
 	root: baremuxPath,
 	prefix: "/baremux/",
-	decoratereply: false,
+	decorateReply: false,
+});
+
+fastify.register(fastifyStatic, {
+	root: downloadDir,
+	prefix: "/downloads/",
+	decorateReply: false,
+});
+
+// Ruta de prueba para yt-dlp
+fastify.get("/api/youtube/test", async (request, reply) => {
+	try {
+		const { stdout } = await execAsync("yt-dlp --version");
+		return reply.send({ status: "yt-dlp is working", version: stdout.trim() });
+	} catch (error) {
+		return reply.code(500).send({ error: "yt-dlp is not installed" });
+	}
 });
 
 // Ruta para obtener información de video de YouTube
@@ -151,23 +163,6 @@ fastify.post("/api/youtube/download", async (request, reply) => {
 	} catch (error) {
 		console.error("Error downloading video:", error.message);
 		return reply.code(500).send({ error: "Failed to download video" });
-	}
-});
-
-// Servir archivos descargados
-fastify.register(fastifyStatic, {
-	root: downloadDir,
-	prefix: "/downloads/",
-	decoratereply: false,
-});
-
-// Ruta de prueba para yt-dlp
-fastify.get("/api/youtube/test", async (request, reply) => {
-	try {
-		const { stdout } = await execAsync("yt-dlp --version");
-		return reply.send({ status: "yt-dlp is working", version: stdout.trim() });
-	} catch (error) {
-		return reply.code(500).send({ error: "yt-dlp is not installed" });
 	}
 });
 
