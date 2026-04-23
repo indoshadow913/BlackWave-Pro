@@ -1,12 +1,17 @@
-# BlackWave-Pro - Render Deployment Configuration with Docker + yt-dlp
+# BlackWave-Pro - Render Deployment Configuration
+# Using cobalt.tools API for YouTube support
 
 services:
   - type: web
     name: blackwave-pro
-    env: docker
+    env: node
     plan: free
     branch: main
     healthCheckPath: /
+    buildCommand: "npm install"
+    startCommand: "node src/index.js"
     envVars:
+      - key: NODE_VERSION
+        value: "20"
       - key: PORT
         value: "10000"

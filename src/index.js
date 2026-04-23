@@ -13,23 +13,12 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const { baremuxPath } = require("@mercuryworkshop/bare-mux/node");
 
-import { exec } from "child_process";
-import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import { dirname } from "path";
-
-const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const downloadDir = path.join(__dirname, "../public/downloads");
-
-// Crear directorio de descargas si no existe
-try {
-	await fs.mkdir(downloadDir, { recursive: true });
-} catch (err) {
-	console.error("Error creating download directory:", err);
-}
+// No necesitamos directorio de descargas para API externa
 
 const publicPath = fileURLToPath(new URL("../public/", import.meta.url));
 
@@ -104,17 +93,19 @@ fastify.register(fastifyStatic, {
 	decorateReply: false,
 });
 
-// Ruta de prueba para yt-dlp
+// Ruta de prueba para API de cobalt.tools
 fastify.get("/api/youtube/test", async (request, reply) => {
 	try {
-		const { stdout } = await execAsync("yt-dlp --version");
-		return reply.send({ status: "yt-dlp is working", version: stdout.trim() });
+		const response = await fetch("https://api.cobalt.tools/api/health");
+		if (response.ok) {
+			return reply.send({ status: "YouTube API is working", service: "cobalt.tools" });
+		}
 	} catch (error) {
-		return reply.code(500).send({ error: "yt-dlp is not installed" });
+		return reply.code(500).send({ error: "YouTube API is unavailable" });
 	}
 });
 
-// Ruta para obtener información de video de YouTube
+// Ruta para obtener información de video de YouTube usando cobalt.tools API
 fastify.post("/api/youtube/info", async (request, reply) => {
 	try {
 		const { url } = request.body;
@@ -122,24 +113,33 @@ fastify.post("/api/youtube/info", async (request, reply) => {
 			return reply.code(400).send({ error: "URL is required" });
 		}
 
-		const command = `yt-dlp -j "${url}" 2>/dev/null`;
-		const { stdout } = await execAsync(command);
-		const videoInfo = JSON.parse(stdout);
+		// Llamar a la API de cobalt.tools para obtener información
+		const apiResponse = await fetch("https://api.cobalt.tools/api/info", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ url }),
+		});
+
+		if (!apiResponse.ok) {
+			throw new Error("Failed to fetch video info from API");
+		}
+
+		const videoInfo = await apiResponse.json();
 
 		return reply.send({
-			title: videoInfo.title,
-			duration: videoInfo.duration,
-			thumbnail: videoInfo.thumbnail,
-			uploader: videoInfo.uploader,
+			title: videoInfo.title || "Unknown",
+			duration: videoInfo.duration || 0,
+			thumbnail: videoInfo.thumbnail || null,
+			uploader: videoInfo.author || "Unknown",
 			formats: videoInfo.formats ? videoInfo.formats.length : 0,
 		});
 	} catch (error) {
 		console.error("Error getting video info:", error.message);
-		return reply.code(500).send({ error: "Failed to get video info" });
+		return reply.code(500).send({ error: "Failed to get video info", details: error.message });
 	}
 });
 
-// Ruta para descargar video de YouTube
+// Ruta para descargar video de YouTube usando cobalt.tools API
 fastify.post("/api/youtube/download", async (request, reply) => {
 	try {
 		const { url, format } = request.body;
@@ -147,22 +147,32 @@ fastify.post("/api/youtube/download", async (request, reply) => {
 			return reply.code(400).send({ error: "URL is required" });
 		}
 
-		const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
-		const outputPath = path.join(downloadDir, `${videoId}.mp4`);
+		// Llamar a la API de cobalt.tools para obtener el enlace de descarga
+		const apiResponse = await fetch("https://api.cobalt.tools/api/download", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ 
+				url,
+				format: format === "audio" ? "audio" : "video",
+				quality: "best"
+			}),
+		});
 
-		const formatOption = format === "audio" ? "-f bestaudio -x --audio-format mp3" : "-f best";
-		const command = `yt-dlp ${formatOption} -o "${outputPath}" "${url}" 2>&1`;
+		if (!apiResponse.ok) {
+			throw new Error("Failed to get download link from API");
+		}
 
-		await execAsync(command);
+		const downloadInfo = await apiResponse.json();
 
 		return reply.send({
 			success: true,
-			downloadUrl: `/downloads/${videoId}.${format === "audio" ? "mp3" : "mp4"}`,
-			message: "Download started",
+			downloadUrl: downloadInfo.url,
+			message: "Download link ready",
+			service: "cobalt.tools"
 		});
 	} catch (error) {
 		console.error("Error downloading video:", error.message);
-		return reply.code(500).send({ error: "Failed to download video" });
+		return reply.code(500).send({ error: "Failed to download video", details: error.message });
 	}
 });
 
