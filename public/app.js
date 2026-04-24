@@ -265,11 +265,9 @@ if (panicBtn) {
 
 // Keyboard shortcut for panic button (= key)
 document.addEventListener("keydown", (e) => {
-  if (e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA") {
-    if (e.key === "=" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      e.preventDefault();
-      triggerPanic();
-    }
+  if (e.key === "=" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    triggerPanic();
   }
 }, true);
 
