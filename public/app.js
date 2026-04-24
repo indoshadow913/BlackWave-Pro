@@ -115,7 +115,9 @@ async function navigate(rawUrl) {
 proxyForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const val = proxyInput.value.trim();
-  if (val) navigate(val);
+  if (val) {
+    navigate(val);
+  }
 });
 
 navForm.addEventListener("submit", (e) => {
@@ -248,8 +250,7 @@ cards.forEach(card => {
   card.addEventListener("click", () => {
     const url = card.getAttribute("data-url");
     if (url) {
-      proxyInput.value = url;
-      proxyForm.dispatchEvent(new Event("submit"));
+      navigate(url);
     }
   });
 });
