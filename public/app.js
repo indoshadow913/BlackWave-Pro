@@ -53,6 +53,13 @@ try {
 try {
   connection = new BareMux.BareMuxConnection("/baremux/worker.js");
   console.log("[BlackWave] BareMux connection created");
+  
+  // Initialize transport early
+  connection.getTransport().then(() => {
+    console.log("[BlackWave] BareMux transport initialized");
+  }).catch(err => {
+    console.warn("[BlackWave] BareMux transport initialization warning:", err);
+  });
 } catch (err) {
   console.error("[BlackWave] BareMux initialization failed:", err);
 }
@@ -107,11 +114,27 @@ async function ensureTransport() {
   
   console.log("[BlackWave] Wisp URL:", wispUrl);
   
-  if ((await connection.getTransport()) !== "/libcurl/index.mjs") {
-    console.log("[BlackWave] Setting transport...");
-    await connection.setTransport("/libcurl/index.mjs", [{ websocket: wispUrl }]);
+  // Try to set transport with retries
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      const currentTransport = await connection.getTransport();
+      if (currentTransport !== "/libcurl/index.mjs") {
+        console.log("[BlackWave] Setting transport...");
+        await connection.setTransport("/libcurl/index.mjs", [{ websocket: wispUrl }]);
+      }
+      console.log("[BlackWave] Transport ready");
+      return;
+    } catch (err) {
+      retries--;
+      console.warn(`[BlackWave] Transport setup failed (${retries} retries left):`, err);
+      if (retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } else {
+        throw new Error(`Transport setup failed after retries: ${err.message}`);
+      }
+    }
   }
-  console.log("[BlackWave] Transport ready");
 }
 
 async function navigate(rawUrl) {
@@ -147,7 +170,14 @@ async function navigate(rawUrl) {
   try {
     await ensureTransport();
   } catch (err) {
-    showError("Transport setup failed.", err.toString());
+    const errorMsg = err.toString();
+    if (errorMsg.includes("wasm")) {
+      showError("Proxy engine loading...", "The proxy is initializing. Please wait a moment and try again.");
+    } else if (errorMsg.includes("transport")) {
+      showError("Connection error", "Unable to establish proxy connection. Check your internet.");
+    } else {
+      showError("Transport setup failed.", errorMsg);
+    }
     console.error("[BlackWave] Transport error:", err);
     return;
   }
