@@ -264,6 +264,7 @@ if (panicBtn) {
 }
 
 // Keyboard shortcut for panic button (= key)
+// Works from anywhere, including inside inputs and iframes
 document.addEventListener("keydown", (e) => {
   if (e.key === "=" && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
