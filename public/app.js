@@ -51,8 +51,8 @@ try {
 }
 
 try {
-  connection = new BareMux.BareMuxConnection("/baremux/worker.js");
-  console.log("[BlackWave] BareMux connection created");
+  connection = new BareMux.BareMuxConnection("/libcurl-worker.js");
+  console.log("[BlackWave] BareMux connection created with libcurl-worker");
   
   // Initialize transport early
   connection.getTransport().then(() => {
