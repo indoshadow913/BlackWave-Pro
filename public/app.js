@@ -2,6 +2,29 @@
 
 console.log("[BlackWave] Initializing...");
 
+// ── Request Caching (for 512MB optimization) ──────────────────────────────────
+const requestCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const MAX_CACHE_SIZE = 50; // Max 50 cached requests
+
+function getCachedRequest(url) {
+  const cached = requestCache.get(url);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log(`[BlackWave] Cache hit for: ${url}`);
+    return cached.data;
+  }
+  if (cached) requestCache.delete(url);
+  return null;
+}
+
+function setCachedRequest(url, data) {
+  if (requestCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = requestCache.keys().next().value;
+    requestCache.delete(firstKey);
+  }
+  requestCache.set(url, { data, timestamp: Date.now() });
+}
+
 // ── Elements ──────────────────────────────────────────────────────────────────
 const homeScreen    = document.getElementById("home-screen");
 const browserChrome = document.getElementById("browser-chrome");

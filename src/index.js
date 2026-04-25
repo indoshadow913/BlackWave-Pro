@@ -4,6 +4,7 @@ import { createServer } from "http";
 import { server as wisp } from "@mercuryworkshop/wisp-js";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
+import fastifyCompress from "@fastify/compress";
 
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
 import { libcurlPath } from "@mercuryworkshop/libcurl-transport";
@@ -21,7 +22,6 @@ import path from "path";
 import { dirname } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// No necesitamos directorio de descargas para API externa
 
 const publicPath = fileURLToPath(new URL("../public/", import.meta.url));
 
@@ -37,8 +37,7 @@ function getRandomUserAgent() {
 	return userAgents[Math.floor(Math.random() * userAgents.length)];
 }
 
-// Wisp Configuration: Refer to the documentation at https://www.npmjs.com/package/@mercuryworkshop/wisp-js
-// Wisp logging is not available in this version
+// Wisp Configuration
 Object.assign(wisp.options, {
 	allow_udp_streams: false,
 	hostname_blacklist: [/example\.com/],
@@ -51,13 +50,33 @@ Object.assign(wisp.options, {
 	},
 });
 
+// Request limiting for 512MB Render
+let activeRequests = 0;
+const MAX_CONCURRENT_REQUESTS = 50;
+
 const fastify = Fastify({
 	logger: false,
 	serverFactory: (handler) => {
 		return createServer()
 			.on("request", (req, res) => {
+				// Limit concurrent requests
+				if (activeRequests >= MAX_CONCURRENT_REQUESTS) {
+					res.writeHead(503, { "Content-Type": "text/plain" });
+					res.end("Server busy - too many requests");
+					return;
+				}
+
+				activeRequests++;
+				res.on("finish", () => activeRequests--);
+
+				// Set security and CORS headers
 				res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
 				res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+				res.setHeader("Access-Control-Allow-Origin", "*");
+				res.setHeader("X-Frame-Options", "ALLOWALL");
+				res.setHeader("Content-Security-Policy", "");
+				res.setHeader("X-Content-Type-Options", "nosniff");
+
 				handler(req, res);
 			})
 			.on("upgrade", (req, socket, head) => {
@@ -67,36 +86,48 @@ const fastify = Fastify({
 	},
 });
 
+// Register compression middleware (CRITICAL for 512MB)
+await fastify.register(fastifyCompress, {
+	threshold: 1024, // Compress responses larger than 1KB
+	encodings: ["gzip", "deflate"],
+});
+
+// Static file serving with caching
 fastify.register(fastifyStatic, {
 	root: publicPath,
 	decorateReply: false,
+	constraints: {},
 });
 
 fastify.register(fastifyStatic, {
 	root: scramjetPath,
 	prefix: "/scram/",
 	decorateReply: false,
+	constraints: {},
 });
 
 fastify.register(fastifyStatic, {
 	root: libcurlPath,
 	prefix: "/libcurl/",
 	decorateReply: false,
+	constraints: {},
 });
 
 fastify.register(fastifyStatic, {
 	root: baremuxPath,
 	prefix: "/baremux/",
 	decorateReply: false,
+	constraints: {},
 });
 
-// Add explicit route for libcurl.wasm with correct MIME type
+// Explicit route for libcurl.wasm with correct MIME type
 fastify.get("/libcurl/libcurl.wasm", async (request, reply) => {
 	try {
 		const wasmPath = path.join(libcurlJsPath, "libcurl.wasm");
 		reply.header("Content-Type", "application/wasm");
 		reply.header("Content-Disposition", "inline");
 		reply.header("Cross-Origin-Resource-Policy", "cross-origin");
+		reply.header("Cache-Control", "public, max-age=86400"); // Cache for 24 hours
 		return reply.sendFile(wasmPath);
 	} catch (err) {
 		console.error("Error serving libcurl.wasm:", err);
@@ -104,28 +135,42 @@ fastify.get("/libcurl/libcurl.wasm", async (request, reply) => {
 	}
 });
 
-// Add CORS headers for wasm files
+// Add CORS and caching headers for all files
 fastify.addHook("onSend", async (request, reply) => {
+	// Cache static assets
+	if (request.url.match(/\.(js|css|wasm|woff|woff2|ttf|eot)$/)) {
+		reply.header("Cache-Control", "public, max-age=86400"); // 24 hours
+	}
+
+	// Ensure WASM has correct MIME type
 	if (request.url.includes(".wasm")) {
 		reply.header("Content-Type", "application/wasm");
 		reply.header("Cross-Origin-Resource-Policy", "cross-origin");
 	}
+
+	// Set security headers for HTML
+	if (request.url.endsWith(".html") || !request.url.includes(".")) {
+		reply.header("X-Frame-Options", "ALLOWALL");
+		reply.header("Content-Security-Policy", "");
+	}
 });
 
-fastify.setNotFoundHandler((res, reply) => {
+fastify.setNotFoundHandler((request, reply) => {
 	return reply.code(404).type("text/html").sendFile("404.html");
 });
 
 fastify.server.on("listening", () => {
 	const address = fastify.server.address();
-	console.log(`Server running on port ${address.port}`);
+	console.log(`[BlackWave-Pro] Server running on port ${address.port}`);
+	console.log(`[BlackWave-Pro] Max concurrent requests: ${MAX_CONCURRENT_REQUESTS}`);
+	console.log(`[BlackWave-Pro] Compression enabled for responses > 1KB`);
 });
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
 function shutdown() {
-	console.log("SIGTERM signal received: closing HTTP server");
+	console.log("[BlackWave-Pro] SIGTERM signal received: closing HTTP server");
 	fastify.close();
 	process.exit(0);
 }
