@@ -13,6 +13,9 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const { baremuxPath } = require("@mercuryworkshop/bare-mux/node");
 
+// Get libcurl.js path for wasm file
+const libcurlJsPath = fileURLToPath(new URL("../node_modules/libcurl.js/", import.meta.url));
+
 import fs from "fs/promises";
 import path from "path";
 import { dirname } from "path";
@@ -87,7 +90,27 @@ fastify.register(fastifyStatic, {
 	decorateReply: false,
 });
 
+// Add explicit route for libcurl.wasm with correct MIME type
+fastify.get("/libcurl/libcurl.wasm", async (request, reply) => {
+	try {
+		const wasmPath = path.join(libcurlJsPath, "libcurl.wasm");
+		reply.header("Content-Type", "application/wasm");
+		reply.header("Content-Disposition", "inline");
+		reply.header("Cross-Origin-Resource-Policy", "cross-origin");
+		return reply.sendFile(wasmPath);
+	} catch (err) {
+		console.error("Error serving libcurl.wasm:", err);
+		return reply.code(404).send("Not Found");
+	}
+});
 
+// Add CORS headers for wasm files
+fastify.addHook("onSend", async (request, reply) => {
+	if (request.url.includes(".wasm")) {
+		reply.header("Content-Type", "application/wasm");
+		reply.header("Cross-Origin-Resource-Policy", "cross-origin");
+	}
+});
 
 fastify.setNotFoundHandler((res, reply) => {
 	return reply.code(404).type("text/html").sendFile("404.html");
