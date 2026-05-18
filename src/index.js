@@ -23,7 +23,7 @@ import { dirname } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const publicPath = fileURLToPath(new URL("../public/", import.meta.url));
+const publicPath = path.join(__dirname, "../public");
 
 const userAgents = [
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -92,11 +92,10 @@ await fastify.register(fastifyCompress, {
 	encodings: ["gzip", "deflate"],
 });
 
-// Static file serving with caching - PUBLIC FOLDER (decorateReply: true for sendFile)
+// Static file serving with caching - PUBLIC FOLDER
 await fastify.register(fastifyStatic, {
 	root: publicPath,
-	decorateReply: true,
-	constraints: {},
+	prefix: "/",
 });
 
 // Static file serving - SCRAMJET
@@ -161,7 +160,7 @@ fastify.addHook("onSend", async (request, reply) => {
 
 // 404 handler - serve index.html for SPA routing
 fastify.setNotFoundHandler((request, reply) => {
-	return reply.sendFile("index.html");
+	return reply.sendFile("index.html", publicPath);
 });
 
 fastify.server.on("listening", () => {
