@@ -138,6 +138,29 @@ fastify.get("/libcurl/libcurl.wasm", async (request, reply) => {
 	}
 });
 
+// Auth hook - allow proxy routes without password
+fastify.addHook("onRequest", async (request, reply) => {
+	const url = request.url;
+
+	// Rutas que NO requieren password (proxy y service workers)
+	if (
+		url.startsWith("/uv/") ||
+		url.startsWith("/scramjet/") ||
+		url.startsWith("/wisp/") ||
+		url.startsWith("/bare/") ||
+		url.startsWith("/scram/") ||
+		url.startsWith("/baremux/") ||
+		url.startsWith("/libcurl/") ||
+		url === "/sw.js" ||
+		url === "/register-sw.js" ||
+		url.endsWith(".wasm") ||
+		url.endsWith(".js") ||
+		url.endsWith(".css")
+	) {
+		return; // Allow without auth
+	}
+});
+
 // Add CORS and caching headers for all files
 fastify.addHook("onSend", async (request, reply) => {
 	// Cache static assets
