@@ -92,28 +92,31 @@ await fastify.register(fastifyCompress, {
 	encodings: ["gzip", "deflate"],
 });
 
-// Static file serving with caching
-fastify.register(fastifyStatic, {
+// Static file serving with caching - PUBLIC FOLDER (decorateReply: true for sendFile)
+await fastify.register(fastifyStatic, {
 	root: publicPath,
-	decorateReply: false,
+	decorateReply: true,
 	constraints: {},
 });
 
-fastify.register(fastifyStatic, {
+// Static file serving - SCRAMJET
+await fastify.register(fastifyStatic, {
 	root: scramjetPath,
 	prefix: "/scram/",
 	decorateReply: false,
 	constraints: {},
 });
 
-fastify.register(fastifyStatic, {
+// Static file serving - LIBCURL
+await fastify.register(fastifyStatic, {
 	root: libcurlPath,
 	prefix: "/libcurl/",
 	decorateReply: false,
 	constraints: {},
 });
 
-fastify.register(fastifyStatic, {
+// Static file serving - BAREMUX
+await fastify.register(fastifyStatic, {
 	root: baremuxPath,
 	prefix: "/baremux/",
 	decorateReply: false,
@@ -128,7 +131,8 @@ fastify.get("/libcurl/libcurl.wasm", async (request, reply) => {
 		reply.header("Content-Disposition", "inline");
 		reply.header("Cross-Origin-Resource-Policy", "cross-origin");
 		reply.header("Cache-Control", "public, max-age=86400"); // Cache for 24 hours
-		return reply.sendFile(wasmPath);
+		const buffer = await fs.readFile(wasmPath);
+		return reply.send(buffer);
 	} catch (err) {
 		console.error("Error serving libcurl.wasm:", err);
 		return reply.code(404).send("Not Found");
@@ -155,8 +159,9 @@ fastify.addHook("onSend", async (request, reply) => {
 	}
 });
 
+// 404 handler - serve index.html for SPA routing
 fastify.setNotFoundHandler((request, reply) => {
-	return reply.code(404).type("text/html").sendFile("404.html");
+	return reply.sendFile("index.html");
 });
 
 fastify.server.on("listening", () => {
