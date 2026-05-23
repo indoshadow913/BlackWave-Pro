@@ -18,7 +18,7 @@ const bare = createBareServer("/bare/");
 // Serve static files from dist
 app.use(express.static(distPath));
 
-// SPA fallback - serve index.html ONLY for non-proxy routes
+// SPA fallback - serve index.html ONLY for non-proxy routes and non-static files
 app.get("*", (req, res, next) => {
   // Exclude proxy routes
   if (
@@ -26,6 +26,22 @@ app.get("*", (req, res, next) => {
     req.path.startsWith("/scram/") ||
     req.path.startsWith("/epoxy/") ||
     req.path.startsWith("/baremux/")
+  ) {
+    return next();
+  }
+
+  // Exclude static files (sw.js, assets, etc.)
+  if (
+    req.path === "/sw.js" ||
+    req.path.startsWith("/assets/") ||
+    req.path.endsWith(".js") ||
+    req.path.endsWith(".css") ||
+    req.path.endsWith(".ico") ||
+    req.path.endsWith(".png") ||
+    req.path.endsWith(".jpg") ||
+    req.path.endsWith(".svg") ||
+    req.path.endsWith(".wasm") ||
+    req.path.endsWith(".mjs")
   ) {
     return next();
   }
