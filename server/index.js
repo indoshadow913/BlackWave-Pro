@@ -7,9 +7,6 @@ import { dirname, join } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const distPath = join(__dirname, "../dist");
-const epoxPath = join(__dirname, "../node_modules/@mercuryworkshop/epoxy-transport/dist");
-const baremuxPath = join(__dirname, "../node_modules/@mercuryworkshop/bare-mux/dist");
-const scramjetPath = join(__dirname, "../node_modules/@mercuryworkshop/scramjet/dist");
 
 const app = express();
 const server = createServer(app);
@@ -17,18 +14,7 @@ const server = createServer(app);
 // Create Bare server
 const bare = createBareServer("/bare/");
 
-console.log("[BlackWave] Paths:");
-console.log("  dist:", distPath);
-console.log("  epoxy:", epoxPath);
-console.log("  baremux:", baremuxPath);
-console.log("  scramjet:", scramjetPath);
-
-// Serve transports BEFORE static files
-app.use("/epoxy/", express.static(epoxPath));
-app.use("/baremux/", express.static(baremuxPath));
-app.use("/scram/", express.static(scramjetPath));
-
-// Serve static files from dist (Vite build output)
+// Serve everything from dist (includes transports copied during build)
 app.use(express.static(distPath));
 
 // CRITICAL: Handle Bare protocol requests with RETURN
