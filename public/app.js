@@ -1,77 +1,29 @@
-console.log("[BlackWave] Initializing...");
+console.log("[BlackWave] Starting initialization...");
 
-// ── CRITICAL: Load libcurl BEFORE anything else ──────────────────────────────────
-async function initApp() {
-  try {
-    // Step 1: Load libcurl WASM before BareMux tries to use it
-    console.log("[BlackWave] Loading libcurl WASM...");
-    const libcurl = await import("/libcurl/index.mjs");
-    await libcurl.load_wasm({
-      wasm: "/libcurl/libcurl.wasm"
-    });
-    console.log("[BlackWave] libcurl WASM loaded successfully");
-  } catch (err) {
-    console.warn("[BlackWave] libcurl WASM loading failed, will use fallback transport:", err);
-  }
-
-  // Step 2: Now initialize BareMux (after libcurl is ready)
-  try {
-    connection = new BareMux.BareMuxConnection("/baremux/worker.js");
-    console.log("[BlackWave] BareMux connection created");
-    
-    connection.getTransport().then(() => {
-      console.log("[BlackWave] BareMux transport initialized");
-    }).catch(err => {
-      console.warn("[BlackWave] BareMux transport initialization warning:", err);
-    });
-  } catch (err) {
-    console.error("[BlackWave] BareMux initialization failed:", err);
-  }
-
-  // Step 3: Initialize Scramjet
-  try {
-    const { ScramjetController } = $scramjetLoadController();
-    scramjet = new ScramjetController({
-      files: {
-        wasm: "/scram/scramjet.wasm.wasm",
-        all:  "/scram/scramjet.all.js",
-        sync: "/scram/scramjet.sync.js",
-      },
-    });
-    scramjet.init("/scram/scramjet.config.js");
-    console.log("[BlackWave] Scramjet initialized");
-  } catch (err) {
-    console.error("[BlackWave] Scramjet initialization failed:", err);
-  }
-
-  // Step 4: Setup UI and event listeners
-  setupUI();
-}
-
-// ── Elements ──────────────────────────────────────────────────────────────────
-const homeScreen    = document.getElementById("home-screen");
-const browserChrome = document.getElementById("browser-chrome");
-const proxyForm     = document.getElementById("proxy-form");
-const proxyInput    = document.getElementById("proxy-input");
-const navForm       = document.getElementById("nav-form");
-const navInput      = document.getElementById("nav-input");
-const frameContainer = document.getElementById("frame-container");
-const errorArea     = document.getElementById("error-area");
-const errorMsg      = document.getElementById("error-msg");
-const errorCode     = document.getElementById("error-code");
-
-const btnHome       = document.getElementById("btn-home");
-const btnBack       = document.getElementById("btn-back");
-const btnForward    = document.getElementById("btn-forward");
-const btnReload     = document.getElementById("btn-reload");
-const btnFullscreen = document.getElementById("btn-fullscreen");
-
-// ── State ──────────────────────────────────────────────────────────────────────
+// ── GLOBAL STATE ──────────────────────────────────────────────────────────────
 let scramjet = null;
 let connection = null;
 let activeFrame = null;
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── DOM ELEMENTS ──────────────────────────────────────────────────────────────
+const homeScreen = document.getElementById("home-screen");
+const browserChrome = document.getElementById("browser-chrome");
+const proxyForm = document.getElementById("proxy-form");
+const proxyInput = document.getElementById("proxy-input");
+const navForm = document.getElementById("nav-form");
+const navInput = document.getElementById("nav-input");
+const frameContainer = document.getElementById("frame-container");
+const errorArea = document.getElementById("error-area");
+const errorMsg = document.getElementById("error-msg");
+const errorCode = document.getElementById("error-code");
+
+const btnHome = document.getElementById("btn-home");
+const btnBack = document.getElementById("btn-back");
+const btnForward = document.getElementById("btn-forward");
+const btnReload = document.getElementById("btn-reload");
+const btnFullscreen = document.getElementById("btn-fullscreen");
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
 function showError(msg, detail) {
   if (errorArea) {
     errorArea.style.display = "block";
@@ -104,69 +56,49 @@ function showHome() {
   console.log("[BlackWave] Home shown");
 }
 
-async function ensureTransport() {
-  if (!connection) {
-    throw new Error("BareMux connection not initialized");
-  }
-  
-  const wispUrl =
-    (location.protocol === "https:" ? "wss" : "ws") +
-    "://" +
-    location.host +
-    "/wisp/";
-  
-  console.log("[BlackWave] Wisp URL:", wispUrl);
-  
-  // Try transports in order: libcurl -> epoxy -> bare
-  const transports = [
-    { name: "libcurl", path: "/libcurl/index.mjs", options: [{ websocket: wispUrl }] },
-    { name: "epoxy", path: "/epoxy/index.mjs", options: [{ wisp: wispUrl }] },
-    { name: "bare", path: "/bare/index.mjs", options: [{ websocket: wispUrl }] }
-  ];
-
-  for (const transport of transports) {
-    let retries = 2;
-    while (retries > 0) {
-      try {
-        console.log(`[BlackWave] Attempting ${transport.name} transport...`);
-        await connection.setTransport(transport.path, transport.options);
-        console.log(`[BlackWave] ${transport.name} transport ready`);
-        return;
-      } catch (err) {
-        retries--;
-        console.warn(`[BlackWave] ${transport.name} failed (${retries} retries left):`, err);
-        if (retries > 0) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
-      }
-    }
-  }
-  
-  throw new Error("All transport options failed (libcurl, epoxy, bare)");
-}
-
-// Simple URL processing function
+// ── URL PROCESSING ────────────────────────────────────────────────────────────
 function processUrl(rawUrl) {
   // Prevent self-proxying
   if (rawUrl.includes(location.hostname)) {
     console.warn("[BlackWave] Blocked self-proxy attempt:", rawUrl);
     return null;
   }
-  
+
   // If it looks like a URL, normalize it
   if (rawUrl.includes("://") || rawUrl.startsWith("http")) {
     return rawUrl;
   }
-  
+
   // If it's a domain-like string, add https://
   if (rawUrl.includes(".") && !rawUrl.includes(" ")) {
     return "https://" + rawUrl;
   }
-  
+
   // Otherwise treat as search query
   return "https://www.google.com/search?q=" + encodeURIComponent(rawUrl);
 }
 
+// ── TRANSPORT SETUP ───────────────────────────────────────────────────────────
+async function ensureTransport() {
+  if (!connection) {
+    throw new Error("BareMux connection not initialized");
+  }
+
+  const wispUrl = location.origin + "/bare/";
+  console.log("[BlackWave] Wisp URL:", wispUrl);
+
+  try {
+    console.log("[BlackWave] Setting Epoxy transport...");
+    await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
+    console.log("[BlackWave] Epoxy transport ready");
+    return;
+  } catch (err) {
+    console.error("[BlackWave] Transport setup failed:", err);
+    throw new Error("Failed to initialize proxy transport: " + err.message);
+  }
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
 async function navigate(rawUrl) {
   console.log("[BlackWave] Navigate called with:", rawUrl);
   hideError();
@@ -186,14 +118,7 @@ async function navigate(rawUrl) {
   try {
     await ensureTransport();
   } catch (err) {
-    const errorMsg = err.toString();
-    if (errorMsg.includes("wasm")) {
-      showError("Proxy engine loading...", "The proxy is initializing. Please wait a moment and try again.");
-    } else if (errorMsg.includes("transport")) {
-      showError("Connection error", "Unable to establish proxy connection. Check your internet.");
-    } else {
-      showError("Transport setup failed.", errorMsg);
-    }
+    showError("Transport setup failed", err.message);
     console.error("[BlackWave] Transport error:", err);
     return;
   }
@@ -206,7 +131,7 @@ async function navigate(rawUrl) {
   if (!activeFrame) {
     console.log("[BlackWave] Creating frame...");
     activeFrame = scramjet.createFrame();
-    activeFrame.frame.style.width  = "100%";
+    activeFrame.frame.style.width = "100%";
     activeFrame.frame.style.height = "100%";
     activeFrame.frame.style.border = "none";
     if (frameContainer) frameContainer.appendChild(activeFrame.frame);
@@ -216,31 +141,27 @@ async function navigate(rawUrl) {
   activeFrame.go(url);
 }
 
-// ── Setup UI and Event Listeners ───────────────────────────────────────────────
+// ── UI SETUP ──────────────────────────────────────────────────────────────────
 function setupUI() {
-  // ── Proxy Form ──────────────────────────────────────────────────────────────
+  // Proxy form
   if (proxyForm) {
     proxyForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const val = proxyInput?.value.trim();
-      if (val) {
-        navigate(val);
-      }
+      if (val) navigate(val);
     });
   }
 
-  // ── Nav Form ────────────────────────────────────────────────────────────────
+  // Nav form
   if (navForm) {
     navForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const val = navInput?.value.trim();
-      if (val) {
-        navigate(val);
-      }
+      if (val) navigate(val);
     });
   }
 
-  // ── Home Button ─────────────────────────────────────────────────────────────
+  // Home button
   if (btnHome) {
     btnHome.addEventListener("click", () => {
       console.log("[BlackWave] Home button clicked");
@@ -248,7 +169,7 @@ function setupUI() {
     });
   }
 
-  // ── Back Button ─────────────────────────────────────────────────────────────
+  // Back button
   if (btnBack) {
     btnBack.addEventListener("click", () => {
       if (activeFrame) {
@@ -258,7 +179,7 @@ function setupUI() {
     });
   }
 
-  // ── Forward Button ──────────────────────────────────────────────────────────
+  // Forward button
   if (btnForward) {
     btnForward.addEventListener("click", () => {
       if (activeFrame) {
@@ -268,7 +189,7 @@ function setupUI() {
     });
   }
 
-  // ── Reload Button ───────────────────────────────────────────────────────────
+  // Reload button
   if (btnReload) {
     btnReload.addEventListener("click", () => {
       if (activeFrame) {
@@ -278,13 +199,13 @@ function setupUI() {
     });
   }
 
-  // ── Fullscreen Button ───────────────────────────────────────────────────────
+  // Fullscreen button
   if (btnFullscreen) {
     btnFullscreen.addEventListener("click", () => {
       if (activeFrame && frameContainer) {
         console.log("[BlackWave] Fullscreen button clicked");
         if (!document.fullscreenElement) {
-          frameContainer.requestFullscreen().catch(err => {
+          frameContainer.requestFullscreen().catch((err) => {
             console.error("[BlackWave] Fullscreen request failed:", err);
           });
         } else {
@@ -294,86 +215,71 @@ function setupUI() {
     });
   }
 
-  // Update nav bar URL when frame navigates
-  if (frameContainer) {
-    frameContainer.addEventListener("load", (e) => {
-      if (e.target && e.target.tagName === "IFRAME") {
-        try {
-          const loc = e.target.contentWindow.location.href;
-          if (loc && loc !== "about:blank" && navInput) navInput.value = loc;
-        } catch (_) {}
-      }
-    }, true);
-  }
-
-  // ── Panic Button ──────────────────────────────────────────────────────────
+  // Panic button
   const panicBtn = document.getElementById("panic-btn");
-  const themeToggle = document.getElementById("theme-toggle");
-
-  function triggerPanic() {
-    console.log("[BlackWave] Panic button triggered");
-    window.location.href = "https://classroom.google.com";
-  }
-
   if (panicBtn) {
-    panicBtn.addEventListener("click", triggerPanic);
+    panicBtn.addEventListener("click", () => {
+      console.log("[BlackWave] Panic button triggered");
+      window.location.href = "https://classroom.google.com";
+    });
   }
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "=" && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
-      triggerPanic();
+      window.location.href = "https://classroom.google.com";
     }
   }, true);
 
-  // ── Theme Toggle ──────────────────────────────────────────────────────────
-  function toggleTheme() {
-    const html = document.documentElement;
-    const isDark = html.getAttribute("data-theme") === "dark";
-    
-    if (isDark) {
-      html.removeAttribute("data-theme");
-      localStorage.setItem("theme", "light");
-      if (themeToggle) themeToggle.textContent = "🌙";
-    } else {
-      html.setAttribute("data-theme", "dark");
-      localStorage.setItem("theme", "dark");
-      if (themeToggle) themeToggle.textContent = "☀️";
-    }
-  }
-
-  const savedTheme = localStorage.getItem("theme");
-  if (savedTheme === "dark") {
-    document.documentElement.setAttribute("data-theme", "dark");
-    if (themeToggle) themeToggle.textContent = "☀️";
-  } else {
-    if (themeToggle) themeToggle.textContent = "🌙";
-  }
-
+  // Theme toggle
+  const themeToggle = document.getElementById("theme-toggle");
   if (themeToggle) {
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute("data-theme") === "dark";
+
+      if (isDark) {
+        html.removeAttribute("data-theme");
+        localStorage.setItem("theme", "light");
+        themeToggle.textContent = "🌙";
+      } else {
+        html.setAttribute("data-theme", "dark");
+        localStorage.setItem("theme", "dark");
+        themeToggle.textContent = "☀️";
+      }
+    }
+
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+      themeToggle.textContent = "☀️";
+    } else {
+      themeToggle.textContent = "🌙";
+    }
+
     themeToggle.addEventListener("click", toggleTheme);
   }
 
-  // ── CATEGORY NAVIGATION ────────────────────────────────────────────────────────
+  // Category navigation
   const navButtons = document.querySelectorAll(".nav-btn");
   const categories = document.querySelectorAll(".category");
 
-  navButtons.forEach(btn => {
+  navButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
       const categoryName = btn.getAttribute("data-category");
       console.log("[BlackWave] Category clicked:", categoryName);
-      
-      navButtons.forEach(b => b.classList.remove("active"));
+
+      navButtons.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      
-      categories.forEach(cat => {
+
+      categories.forEach((cat) => {
         const catName = cat.getAttribute("data-category");
         cat.style.display = catName === categoryName ? "block" : "none";
       });
     });
   });
 
-  // ── CARD CLICK HANDLER ────────────────────────────────────────────────────────
+  // Card click handler
   const cards = document.querySelectorAll(".card");
   console.log(`[BlackWave] Found ${cards.length} cards`);
 
@@ -381,21 +287,70 @@ function setupUI() {
     card.addEventListener("click", () => {
       const url = card.getAttribute("data-url");
       console.log(`[BlackWave] Card ${index} clicked:`, url);
-      if (url) {
-        navigate(url);
-      }
+      if (url) navigate(url);
     });
   });
 
   console.log("[BlackWave] UI setup complete");
 }
 
-// ── START THE APP ──────────────────────────────────────────────────────────────
-// Wait for DOM to be ready, then initialize
+// ── INITIALIZATION ────────────────────────────────────────────────────────────
+async function initApp() {
+  console.log("[BlackWave] Initializing app...");
+
+  // Initialize Scramjet
+  try {
+    const { ScramjetController } = $scramjetLoadController();
+    scramjet = new ScramjetController({
+      files: {
+        wasm: "/scram/scramjet.wasm.wasm",
+        all: "/scram/scramjet.all.js",
+        sync: "/scram/scramjet.sync.js",
+      },
+    });
+    scramjet.init("/scram/scramjet.config.js");
+    console.log("[BlackWave] Scramjet initialized");
+  } catch (err) {
+    console.error("[BlackWave] Scramjet initialization failed:", err);
+    showError("Proxy engine failed", "Scramjet could not load");
+    return;
+  }
+
+  // Initialize BareMux
+  try {
+    connection = new BareMux.BareMuxConnection("/baremux/worker.js");
+    console.log("[BlackWave] BareMux connection created");
+  } catch (err) {
+    console.error("[BlackWave] BareMux initialization failed:", err);
+    showError("Proxy connection failed", "BareMux could not initialize");
+    return;
+  }
+
+  // Setup UI
+  setupUI();
+
+  console.log("[BlackWave] Initialization complete");
+}
+
+// ── START ─────────────────────────────────────────────────────────────────────
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initApp);
 } else {
   initApp();
 }
 
-console.log("[BlackWave] Script loaded, waiting for DOM...");
+// Register Service Worker AFTER app initialization
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((reg) => {
+        console.log("[BlackWave] Service Worker registered:", reg);
+      })
+      .catch((err) => {
+        console.warn("[BlackWave] Service Worker registration failed:", err);
+      });
+  });
+}
+
+console.log("[BlackWave] Script loaded");
