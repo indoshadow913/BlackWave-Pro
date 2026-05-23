@@ -1,29 +1,5 @@
 "use strict";
-
 console.log("[BlackWave] Initializing...");
-
-// ── Request Caching (for 512MB optimization) ──────────────────────────────────
-const requestCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const MAX_CACHE_SIZE = 50; // Max 50 cached requests
-
-function getCachedRequest(url) {
-  const cached = requestCache.get(url);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log(`[BlackWave] Cache hit for: ${url}`);
-    return cached.data;
-  }
-  if (cached) requestCache.delete(url);
-  return null;
-}
-
-function setCachedRequest(url, data) {
-  if (requestCache.size >= MAX_CACHE_SIZE) {
-    const firstKey = requestCache.keys().next().value;
-    requestCache.delete(firstKey);
-  }
-  requestCache.set(url, { data, timestamp: Date.now() });
-}
 
 // ── Elements ──────────────────────────────────────────────────────────────────
 const homeScreen    = document.getElementById("home-screen");
@@ -42,17 +18,6 @@ const btnBack       = document.getElementById("btn-back");
 const btnForward    = document.getElementById("btn-forward");
 const btnReload     = document.getElementById("btn-reload");
 const btnFullscreen = document.getElementById("btn-fullscreen");
-
-// Verificar que todos los elementos existen
-const requiredElements = {
-  homeScreen, browserChrome, proxyForm, proxyInput, navForm, navInput,
-  frameContainer, errorArea, errorMsg, errorCode,
-  btnHome, btnBack, btnForward, btnReload, btnFullscreen
-};
-
-for (const [name, el] of Object.entries(requiredElements)) {
-  if (!el) console.error(`[BlackWave] Missing element: ${name}`);
-}
 
 // ── Scramjet setup ─────────────────────────────────────────────────────────────
 let scramjet = null;
@@ -77,7 +42,6 @@ try {
   connection = new BareMux.BareMuxConnection("/baremux/worker.js");
   console.log("[BlackWave] BareMux connection created");
   
-  // Initialize transport early
   connection.getTransport().then(() => {
     console.log("[BlackWave] BareMux transport initialized");
   }).catch(err => {
@@ -113,7 +77,6 @@ function showBrowser() {
 function showHome() {
   if (browserChrome) browserChrome.style.display = "none";
   if (homeScreen) homeScreen.style.display = "flex";
-  // Clean up frame
   if (activeFrame) {
     try {
       activeFrame.frame.remove();
@@ -137,7 +100,6 @@ async function ensureTransport() {
   
   console.log("[BlackWave] Wisp URL:", wispUrl);
   
-  // Try to set transport with retries
   let retries = 3;
   while (retries > 0) {
     try {
@@ -150,14 +112,25 @@ async function ensureTransport() {
       return;
     } catch (err) {
       retries--;
-      console.warn(`[BlackWave] Transport setup failed (${retries} retries left):`, err);
+      console.warn(`[BlackWave] Transport attempt failed, retries left: ${retries}`, err);
       if (retries > 0) {
         await new Promise(resolve => setTimeout(resolve, 500));
-      } else {
-        throw new Error(`Transport setup failed after retries: ${err.message}`);
       }
     }
   }
+  
+  throw new Error("Transport setup failed after retries");
+}
+
+// Simple URL processing function
+function processUrl(rawUrl) {
+  // If it looks like a URL, use it as-is
+  if (rawUrl.includes("://") || rawUrl.startsWith("http")) {
+    return rawUrl;
+  }
+  
+  // Otherwise treat as search query
+  return "https://www.google.com/search?q=" + encodeURIComponent(rawUrl);
 }
 
 async function navigate(rawUrl) {
@@ -169,25 +142,7 @@ async function navigate(rawUrl) {
     return;
   }
 
-  // Esperar a que search() esté disponible
-  let searchFn = window.search;
-  if (typeof searchFn !== 'function') {
-    console.warn("[BlackWave] search() not available yet, waiting...");
-    // Esperar hasta 2 segundos para que search.js se cargue
-    for (let i = 0; i < 20; i++) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      searchFn = window.search;
-      if (typeof searchFn === 'function') break;
-    }
-  }
-
-  if (typeof searchFn !== 'function') {
-    console.error("[BlackWave] search() function still not available");
-    showError("Search function not available", "search.js may not be loaded");
-    return;
-  }
-
-  const url = searchFn(rawUrl, "https://www.google.com/search?q=%s");
+  const url = processUrl(rawUrl);
   console.log("[BlackWave] Processed URL:", url);
 
   try {
@@ -243,14 +198,6 @@ if (navForm) {
     if (val) navigate(val);
   });
 }
-
-document.querySelectorAll(".quick-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const url = btn.dataset.url;
-    console.log("[BlackWave] Quick button clicked:", url);
-    if (url) navigate(url);
-  });
-});
 
 if (btnHome) {
   btnHome.addEventListener("click", showHome);
@@ -316,8 +263,6 @@ if (panicBtn) {
   panicBtn.addEventListener("click", triggerPanic);
 }
 
-// Keyboard shortcut for panic button (= key)
-// Works from anywhere, including inside inputs and iframes
 document.addEventListener("keydown", (e) => {
   if (e.key === "=" && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
@@ -341,7 +286,6 @@ function toggleTheme() {
   }
 }
 
-// Load saved theme preference
 const savedTheme = localStorage.getItem("theme");
 if (savedTheme === "dark") {
   document.documentElement.setAttribute("data-theme", "dark");
@@ -363,11 +307,9 @@ navButtons.forEach(btn => {
     const categoryName = btn.getAttribute("data-category");
     console.log("[BlackWave] Category clicked:", categoryName);
     
-    // Update active button
     navButtons.forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     
-    // Show/hide categories
     categories.forEach(cat => {
       const catName = cat.getAttribute("data-category");
       cat.style.display = catName === categoryName ? "block" : "none";
@@ -377,10 +319,12 @@ navButtons.forEach(btn => {
 
 // ── CARD CLICK HANDLER ────────────────────────────────────────────────────────
 const cards = document.querySelectorAll(".card");
-cards.forEach(card => {
+console.log(`[BlackWave] Found ${cards.length} cards`);
+
+cards.forEach((card, index) => {
   card.addEventListener("click", () => {
     const url = card.getAttribute("data-url");
-    console.log("[BlackWave] Card clicked:", url);
+    console.log(`[BlackWave] Card ${index} clicked:`, url);
     if (url) {
       navigate(url);
     }
