@@ -14,37 +14,28 @@ const server = createServer(app);
 // Create Bare server
 const bare = createBareServer("/bare/");
 
-// Serve Epoxy transport
+// Serve transports BEFORE static files
 app.use("/epoxy/", express.static("node_modules/@mercuryworkshop/epoxy-transport/dist/"));
-
-// Serve BareMux
 app.use("/baremux/", express.static("node_modules/@mercuryworkshop/bare-mux/dist/"));
-
-// Serve Scramjet
 app.use("/scram/", express.static("node_modules/@mercuryworkshop/scramjet/dist/"));
 
 // Serve static files from dist (Vite build output)
 app.use(express.static(distPath));
 
-// Handle Bare protocol requests
+// CRITICAL: Handle Bare protocol requests with RETURN
 server.on("request", (req, res) => {
   if (bare.shouldRoute(req)) {
-    bare.routeRequest(req, res);
-  } else {
-    app(req, res);
+    return bare.routeRequest(req, res);
   }
+
+  app(req, res);
 });
 
-// Handle WebSocket upgrades for Bare
+// CRITICAL: Handle WebSocket upgrades with RETURN
 server.on("upgrade", (req, socket, head) => {
   if (bare.shouldRoute(req)) {
-    bare.routeUpgrade(req, socket, head);
+    return bare.routeUpgrade(req, socket, head);
   }
-});
-
-// 404 handler - serve index.html for SPA routing
-app.use((req, res) => {
-  res.sendFile("index.html", { root: distPath });
 });
 
 const PORT = process.env.PORT || 8080;
