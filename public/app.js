@@ -124,9 +124,20 @@ async function ensureTransport() {
 
 // Simple URL processing function
 function processUrl(rawUrl) {
-  // If it looks like a URL, use it as-is
+  // Prevent self-proxying
+  if (rawUrl.includes(location.hostname)) {
+    console.warn("[BlackWave] Blocked self-proxy attempt:", rawUrl);
+    return null;
+  }
+  
+  // If it looks like a URL, normalize it
   if (rawUrl.includes("://") || rawUrl.startsWith("http")) {
     return rawUrl;
+  }
+  
+  // If it's a domain-like string, add https://
+  if (rawUrl.includes(".") && !rawUrl.includes(" ")) {
+    return "https://" + rawUrl;
   }
   
   // Otherwise treat as search query
@@ -143,6 +154,10 @@ async function navigate(rawUrl) {
   }
 
   const url = processUrl(rawUrl);
+  if (!url) {
+    showError("Invalid URL", "Cannot proxy to the same domain");
+    return;
+  }
   console.log("[BlackWave] Processed URL:", url);
 
   try {
