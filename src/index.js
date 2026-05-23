@@ -86,10 +86,18 @@ const fastify = Fastify({
 	},
 });
 
+// Add hook to set WASM Content-Type
+fastify.addHook('onSend', async (request, reply) => {
+	if (request.url.endsWith('.wasm')) {
+		reply.header('Content-Type', 'application/wasm');
+		reply.header('Cross-Origin-Resource-Policy', 'cross-origin');
+	}
+});
+
 // Static file serving with decorateReply enabled
 await fastify.register(fastifyStatic, {
 	root: publicPath,
-	decorateReply: true,
+	decoratereply: true,
 	prefix: "/",
 });
 
