@@ -104,9 +104,9 @@ async function ensureTransport() {
   while (retries > 0) {
     try {
       const currentTransport = await connection.getTransport();
-      if (currentTransport !== "/libcurl/index.mjs") {
-        console.log("[BlackWave] Setting transport...");
-        await connection.setTransport("/libcurl/index.mjs", [{ websocket: wispUrl }]);
+      if (currentTransport !== "libcurl") {
+        console.log("[BlackWave] Setting transport to libcurl...");
+        await connection.setTransport("libcurl", [{ websocket: wispUrl }]);
       }
       console.log("[BlackWave] Transport ready");
       return;
