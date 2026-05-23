@@ -6,7 +6,7 @@
   "main": "server/index.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node copy-transports.mjs",
     "preview": "vite preview",
     "start": "node server/index.js"
   },
