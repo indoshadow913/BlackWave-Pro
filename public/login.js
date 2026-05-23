@@ -6,13 +6,11 @@ function hideLoginScreen() {
   
   if (loginScreen) {
     loginScreen.style.display = 'none';
-    loginScreen.style.pointerEvents = 'none';
     loginScreen.style.visibility = 'hidden';
   }
   
   if (homeScreen) {
     homeScreen.style.display = 'flex';
-    homeScreen.style.pointerEvents = 'auto';
     homeScreen.style.visibility = 'visible';
   }
 }
@@ -23,13 +21,11 @@ function showLoginScreen() {
   
   if (loginScreen) {
     loginScreen.style.display = 'flex';
-    loginScreen.style.pointerEvents = 'auto';
     loginScreen.style.visibility = 'visible';
   }
   
   if (homeScreen) {
     homeScreen.style.display = 'none';
-    homeScreen.style.pointerEvents = 'none';
     homeScreen.style.visibility = 'hidden';
   }
 }
