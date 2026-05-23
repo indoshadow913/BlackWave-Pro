@@ -2,31 +2,10 @@ const PASSWORD = 'Pro918';
 
 function hideLoginScreen() {
   const loginScreen = document.getElementById('login-screen');
-  const homeScreen = document.getElementById('home-screen');
   
   if (loginScreen) {
-    loginScreen.style.display = 'none';
-    loginScreen.style.visibility = 'hidden';
-  }
-  
-  if (homeScreen) {
-    homeScreen.style.display = 'flex';
-    homeScreen.style.visibility = 'visible';
-  }
-}
-
-function showLoginScreen() {
-  const loginScreen = document.getElementById('login-screen');
-  const homeScreen = document.getElementById('home-screen');
-  
-  if (loginScreen) {
-    loginScreen.style.display = 'flex';
-    loginScreen.style.visibility = 'visible';
-  }
-  
-  if (homeScreen) {
-    homeScreen.style.display = 'none';
-    homeScreen.style.visibility = 'hidden';
+    // Remove from DOM completely to avoid z-index issues
+    loginScreen.remove();
   }
 }
 
@@ -34,8 +13,6 @@ function showLoginScreen() {
 window.addEventListener('DOMContentLoaded', function() {
   if (sessionStorage.getItem('authenticated') === 'true') {
     hideLoginScreen();
-  } else {
-    showLoginScreen();
   }
 });
 
@@ -48,11 +25,12 @@ if (loginForm) {
     
     if (input === PASSWORD) {
       sessionStorage.setItem('authenticated', 'true');
-      document.getElementById('password-input').value = '';
-      document.getElementById('login-error').style.display = 'none';
       hideLoginScreen();
     } else {
-      document.getElementById('login-error').style.display = 'block';
+      const errorEl = document.getElementById('login-error');
+      if (errorEl) {
+        errorEl.style.display = 'block';
+      }
       document.getElementById('password-input').value = '';
     }
   });
