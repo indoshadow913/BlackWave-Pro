@@ -125,6 +125,15 @@ await fastify.register(fastifyStatic, {
 	constraints: {},
 });
 
+// Static file serving - EPOXY
+const epoxPath = fileURLToPath(new URL("../public/epoxy/", import.meta.url));
+await fastify.register(fastifyStatic, {
+	root: epoxPath,
+	prefix: "/epoxy/",
+	decorateReply: false,
+	constraints: {},
+});
+
 // Explicit route for libcurl.wasm with correct MIME type
 fastify.get("/libcurl/libcurl.wasm", async (request, reply) => {
 	try {
@@ -154,6 +163,7 @@ fastify.addHook("onRequest", async (request, reply) => {
 		url.startsWith("/scram/") ||
 		url.startsWith("/baremux/") ||
 		url.startsWith("/libcurl/") ||
+		url.startsWith("/epoxy/") ||
 		url === "/sw.js" ||
 		url === "/register-sw.js" ||
 		url.endsWith(".wasm") ||

@@ -117,32 +117,32 @@ async function ensureTransport() {
   
   console.log("[BlackWave] Wisp URL:", wispUrl);
   
-  let retries = 3;
-  while (retries > 0) {
-    try {
-      const currentTransport = await connection.getTransport();
-      // Try libcurl first, fallback to bare
-      if (currentTransport !== "libcurl" && currentTransport !== "bare") {
-        console.log("[BlackWave] Setting transport to libcurl...");
-        try {
-          await connection.setTransport("libcurl", [{ websocket: wispUrl }]);
-        } catch (libcurlErr) {
-          console.warn("[BlackWave] libcurl transport failed, falling back to bare:", libcurlErr);
-          await connection.setTransport("bare", [{ websocket: wispUrl }]);
+  // Try transports in order: libcurl -> epoxy -> bare
+  const transports = [
+    { name: "libcurl", path: "/libcurl/index.mjs", options: [{ websocket: wispUrl }] },
+    { name: "epoxy", path: "/epoxy/index.mjs", options: [{ wisp: wispUrl }] },
+    { name: "bare", path: "/bare/index.mjs", options: [{ websocket: wispUrl }] }
+  ];
+
+  for (const transport of transports) {
+    let retries = 2;
+    while (retries > 0) {
+      try {
+        console.log(`[BlackWave] Attempting ${transport.name} transport...`);
+        await connection.setTransport(transport.path, transport.options);
+        console.log(`[BlackWave] ${transport.name} transport ready`);
+        return;
+      } catch (err) {
+        retries--;
+        console.warn(`[BlackWave] ${transport.name} failed (${retries} retries left):`, err);
+        if (retries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
-      }
-      console.log("[BlackWave] Transport ready:", currentTransport);
-      return;
-    } catch (err) {
-      retries--;
-      console.warn(`[BlackWave] Transport attempt failed, retries left: ${retries}`, err);
-      if (retries > 0) {
-        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
   }
   
-  throw new Error("Transport setup failed after retries");
+  throw new Error("All transport options failed (libcurl, epoxy, bare)");
 }
 
 // Simple URL processing function
