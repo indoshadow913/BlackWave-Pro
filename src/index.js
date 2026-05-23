@@ -23,7 +23,7 @@ import { dirname } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const publicPath = path.join(__dirname, "../public");
+const publicPath = fileURLToPath(new URL("../public/", import.meta.url));
 
 const userAgents = [
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -86,15 +86,10 @@ const fastify = Fastify({
 	},
 });
 
-// Register compression middleware (CRITICAL for 512MB)
-await fastify.register(fastifyCompress, {
-	threshold: 1024, // Compress responses larger than 1KB
-	encodings: ["gzip", "deflate"],
-});
-
-// Static file serving with caching - PUBLIC FOLDER
+// Static file serving with decorateReply enabled
 await fastify.register(fastifyStatic, {
 	root: publicPath,
+	decorateReply: true,
 	prefix: "/",
 });
 
@@ -183,7 +178,7 @@ fastify.addHook("onSend", async (request, reply) => {
 
 // 404 handler - serve index.html for SPA routing
 fastify.setNotFoundHandler((request, reply) => {
-	return reply.sendFile("index.html", publicPath);
+	return reply.sendFile("index.html");
 });
 
 fastify.server.on("listening", () => {
