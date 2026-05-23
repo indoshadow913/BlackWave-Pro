@@ -64,4 +64,13 @@ console.log("[copy-transports] Starting transport copy...");
 transports.forEach((transport) => {
   copyDir(transport.src, transport.dest);
 });
-console.log("[copy-transports] ✅ All transports copied successfully");
+
+// Also copy sw.js
+const swSrc = path.join(__dirname, "public/sw.js");
+const swDest = path.join(distPath, "sw.js");
+if (fs.existsSync(swSrc)) {
+  fs.copyFileSync(swSrc, swDest);
+  console.log(`[copy-transports] Copied: ${swSrc} → ${swDest}`);
+}
+
+console.log("[copy-transports] ✅ All transports and static files copied successfully");
