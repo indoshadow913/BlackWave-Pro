@@ -3,9 +3,19 @@ let isAuthenticated = false;
 
 function removeLoginScreen() {
   const loginScreen = document.getElementById('login-screen');
+  const homeScreen = document.getElementById('home-screen');
+  
   if (loginScreen) {
     loginScreen.remove();
     console.log('[Login] Login screen removed from DOM');
+  }
+  
+  // Ensure home-screen is visible
+  if (homeScreen) {
+    homeScreen.style.display = 'flex';
+    homeScreen.style.visibility = 'visible';
+    homeScreen.style.pointerEvents = 'auto';
+    console.log('[Login] Home screen made visible');
   }
 }
 
@@ -13,7 +23,12 @@ function handleAuthentication() {
   isAuthenticated = true;
   sessionStorage.setItem('authenticated', 'true');
   localStorage.setItem('authenticated', 'true');
-  removeLoginScreen();
+  
+  // Small delay to ensure DOM is ready
+  setTimeout(() => {
+    removeLoginScreen();
+  }, 100);
+  
   console.log('[Login] Authentication successful');
 }
 
@@ -21,13 +36,14 @@ function handleAuthentication() {
 window.addEventListener('DOMContentLoaded', function() {
   console.log('[Login] DOMContentLoaded event fired');
   
-  // Check both sessionStorage and localStorage
   const sessionAuth = sessionStorage.getItem('authenticated') === 'true';
   const localAuth = localStorage.getItem('authenticated') === 'true';
   
   if (sessionAuth || localAuth || isAuthenticated) {
     console.log('[Login] Already authenticated, removing login screen');
-    removeLoginScreen();
+    setTimeout(() => {
+      removeLoginScreen();
+    }, 100);
   } else {
     console.log('[Login] Not authenticated, showing login screen');
   }
@@ -40,7 +56,7 @@ if (loginForm) {
     e.preventDefault();
     const input = document.getElementById('password-input').value;
     
-    console.log('[Login] Form submitted with password:', input.length > 0 ? '***' : 'empty');
+    console.log('[Login] Form submitted');
     
     if (input === PASSWORD) {
       console.log('[Login] Password correct');
