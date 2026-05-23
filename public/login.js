@@ -1,21 +1,63 @@
 const PASSWORD = 'Pro918';
 
-document.getElementById('login-form').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const input = document.getElementById('password-input').value;
+function hideLoginScreen() {
+  const loginScreen = document.getElementById('login-screen');
+  const homeScreen = document.getElementById('home-screen');
   
-  if (input === PASSWORD) {
-    sessionStorage.setItem('authenticated', 'true');
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('home-screen').style.display = 'flex';
+  if (loginScreen) {
+    loginScreen.style.display = 'none';
+    loginScreen.style.pointerEvents = 'none';
+    loginScreen.style.visibility = 'hidden';
+  }
+  
+  if (homeScreen) {
+    homeScreen.style.display = 'flex';
+    homeScreen.style.pointerEvents = 'auto';
+    homeScreen.style.visibility = 'visible';
+  }
+}
+
+function showLoginScreen() {
+  const loginScreen = document.getElementById('login-screen');
+  const homeScreen = document.getElementById('home-screen');
+  
+  if (loginScreen) {
+    loginScreen.style.display = 'flex';
+    loginScreen.style.pointerEvents = 'auto';
+    loginScreen.style.visibility = 'visible';
+  }
+  
+  if (homeScreen) {
+    homeScreen.style.display = 'none';
+    homeScreen.style.pointerEvents = 'none';
+    homeScreen.style.visibility = 'hidden';
+  }
+}
+
+// Check if already authenticated on page load
+window.addEventListener('DOMContentLoaded', function() {
+  if (sessionStorage.getItem('authenticated') === 'true') {
+    hideLoginScreen();
   } else {
-    document.getElementById('login-error').style.display = 'block';
-    document.getElementById('password-input').value = '';
+    showLoginScreen();
   }
 });
 
-// Check if already authenticated
-if (sessionStorage.getItem('authenticated') === 'true') {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('home-screen').style.display = 'flex';
+// Handle login form submission
+const loginForm = document.getElementById('login-form');
+if (loginForm) {
+  loginForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const input = document.getElementById('password-input').value;
+    
+    if (input === PASSWORD) {
+      sessionStorage.setItem('authenticated', 'true');
+      document.getElementById('password-input').value = '';
+      document.getElementById('login-error').style.display = 'none';
+      hideLoginScreen();
+    } else {
+      document.getElementById('login-error').style.display = 'block';
+      document.getElementById('password-input').value = '';
+    }
+  });
 }
