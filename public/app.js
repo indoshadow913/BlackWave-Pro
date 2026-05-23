@@ -1,5 +1,52 @@
-"use strict";
 console.log("[BlackWave] Initializing...");
+
+// ── CRITICAL: Load libcurl BEFORE anything else ──────────────────────────────────
+async function initApp() {
+  try {
+    // Step 1: Load libcurl WASM before BareMux tries to use it
+    console.log("[BlackWave] Loading libcurl WASM...");
+    const libcurl = await import("/libcurl/index.mjs");
+    await libcurl.load_wasm({
+      wasm: "/libcurl/libcurl.wasm"
+    });
+    console.log("[BlackWave] libcurl WASM loaded successfully");
+  } catch (err) {
+    console.warn("[BlackWave] libcurl WASM loading failed, will use fallback transport:", err);
+  }
+
+  // Step 2: Now initialize BareMux (after libcurl is ready)
+  try {
+    connection = new BareMux.BareMuxConnection("/baremux/worker.js");
+    console.log("[BlackWave] BareMux connection created");
+    
+    connection.getTransport().then(() => {
+      console.log("[BlackWave] BareMux transport initialized");
+    }).catch(err => {
+      console.warn("[BlackWave] BareMux transport initialization warning:", err);
+    });
+  } catch (err) {
+    console.error("[BlackWave] BareMux initialization failed:", err);
+  }
+
+  // Step 3: Initialize Scramjet
+  try {
+    const { ScramjetController } = $scramjetLoadController();
+    scramjet = new ScramjetController({
+      files: {
+        wasm: "/scram/scramjet.wasm.wasm",
+        all:  "/scram/scramjet.all.js",
+        sync: "/scram/scramjet.sync.js",
+      },
+    });
+    scramjet.init("/scram/scramjet.config.js");
+    console.log("[BlackWave] Scramjet initialized");
+  } catch (err) {
+    console.error("[BlackWave] Scramjet initialization failed:", err);
+  }
+
+  // Step 4: Setup UI and event listeners
+  setupUI();
+}
 
 // ── Elements ──────────────────────────────────────────────────────────────────
 const homeScreen    = document.getElementById("home-screen");
@@ -19,39 +66,9 @@ const btnForward    = document.getElementById("btn-forward");
 const btnReload     = document.getElementById("btn-reload");
 const btnFullscreen = document.getElementById("btn-fullscreen");
 
-// ── Scramjet setup ─────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────────────
 let scramjet = null;
 let connection = null;
-
-try {
-  const { ScramjetController } = $scramjetLoadController();
-  scramjet = new ScramjetController({
-    files: {
-      wasm: "/scram/scramjet.wasm.wasm",
-      all:  "/scram/scramjet.all.js",
-      sync: "/scram/scramjet.sync.js",
-    },
-  });
-  scramjet.init("/scram/scramjet.config.js");
-  console.log("[BlackWave] Scramjet initialized");
-} catch (err) {
-  console.error("[BlackWave] Scramjet initialization failed:", err);
-}
-
-try {
-  connection = new BareMux.BareMuxConnection("/baremux/worker.js");
-  console.log("[BlackWave] BareMux connection created");
-  
-  connection.getTransport().then(() => {
-    console.log("[BlackWave] BareMux transport initialized");
-  }).catch(err => {
-    console.warn("[BlackWave] BareMux transport initialization warning:", err);
-  });
-} catch (err) {
-  console.error("[BlackWave] BareMux initialization failed:", err);
-}
-
-// ── State ──────────────────────────────────────────────────────────────────────
 let activeFrame = null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -104,11 +121,17 @@ async function ensureTransport() {
   while (retries > 0) {
     try {
       const currentTransport = await connection.getTransport();
-      if (currentTransport !== "libcurl") {
+      // Try libcurl first, fallback to bare
+      if (currentTransport !== "libcurl" && currentTransport !== "bare") {
         console.log("[BlackWave] Setting transport to libcurl...");
-        await connection.setTransport("libcurl", [{ websocket: wispUrl }]);
+        try {
+          await connection.setTransport("libcurl", [{ websocket: wispUrl }]);
+        } catch (libcurlErr) {
+          console.warn("[BlackWave] libcurl transport failed, falling back to bare:", libcurlErr);
+          await connection.setTransport("bare", [{ websocket: wispUrl }]);
+        }
       }
-      console.log("[BlackWave] Transport ready");
+      console.log("[BlackWave] Transport ready:", currentTransport);
       return;
     } catch (err) {
       retries--;
@@ -193,157 +216,186 @@ async function navigate(rawUrl) {
   activeFrame.go(url);
 }
 
-// ── Event listeners ────────────────────────────────────────────────────────────
-if (proxyForm) {
-  proxyForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const val = proxyInput?.value.trim();
-    console.log("[BlackWave] Proxy form submitted with:", val);
-    if (val) {
-      navigate(val);
-    }
-  });
-}
+// ── Setup UI and Event Listeners ───────────────────────────────────────────────
+function setupUI() {
+  // ── Proxy Form ──────────────────────────────────────────────────────────────
+  if (proxyForm) {
+    proxyForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const val = proxyInput?.value.trim();
+      if (val) {
+        navigate(val);
+      }
+    });
+  }
 
-if (navForm) {
-  navForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const val = navInput?.value.trim();
-    console.log("[BlackWave] Nav form submitted with:", val);
-    if (val) navigate(val);
-  });
-}
+  // ── Nav Form ────────────────────────────────────────────────────────────────
+  if (navForm) {
+    navForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const val = navInput?.value.trim();
+      if (val) {
+        navigate(val);
+      }
+    });
+  }
 
-if (btnHome) {
-  btnHome.addEventListener("click", showHome);
-}
+  // ── Home Button ─────────────────────────────────────────────────────────────
+  if (btnHome) {
+    btnHome.addEventListener("click", () => {
+      console.log("[BlackWave] Home button clicked");
+      showHome();
+    });
+  }
 
-if (btnBack) {
-  btnBack.addEventListener("click", () => {
-    if (activeFrame) {
-      try { activeFrame.frame.contentWindow.history.back(); } catch (_) {}
-    }
-  });
-}
+  // ── Back Button ─────────────────────────────────────────────────────────────
+  if (btnBack) {
+    btnBack.addEventListener("click", () => {
+      if (activeFrame) {
+        console.log("[BlackWave] Back button clicked");
+        activeFrame.back();
+      }
+    });
+  }
 
-if (btnForward) {
-  btnForward.addEventListener("click", () => {
-    if (activeFrame) {
-      try { activeFrame.frame.contentWindow.history.forward(); } catch (_) {}
-    }
-  });
-}
+  // ── Forward Button ──────────────────────────────────────────────────────────
+  if (btnForward) {
+    btnForward.addEventListener("click", () => {
+      if (activeFrame) {
+        console.log("[BlackWave] Forward button clicked");
+        activeFrame.forward();
+      }
+    });
+  }
 
-if (btnReload) {
-  btnReload.addEventListener("click", () => {
-    if (activeFrame) {
-      try { activeFrame.frame.contentWindow.location.reload(); } catch (_) {}
-    }
-  });
-}
+  // ── Reload Button ───────────────────────────────────────────────────────────
+  if (btnReload) {
+    btnReload.addEventListener("click", () => {
+      if (activeFrame) {
+        console.log("[BlackWave] Reload button clicked");
+        activeFrame.reload();
+      }
+    });
+  }
 
-if (btnFullscreen) {
-  btnFullscreen.addEventListener("click", () => {
-    const el = frameContainer;
-    if (!document.fullscreenElement) {
-      el.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen().catch(() => {});
-    }
-  });
-}
+  // ── Fullscreen Button ───────────────────────────────────────────────────────
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener("click", () => {
+      if (activeFrame && frameContainer) {
+        console.log("[BlackWave] Fullscreen button clicked");
+        if (!document.fullscreenElement) {
+          frameContainer.requestFullscreen().catch(err => {
+            console.error("[BlackWave] Fullscreen request failed:", err);
+          });
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    });
+  }
 
-// Update nav bar URL when frame navigates
-if (frameContainer) {
-  frameContainer.addEventListener("load", (e) => {
-    if (e.target && e.target.tagName === "IFRAME") {
-      try {
-        const loc = e.target.contentWindow.location.href;
-        if (loc && loc !== "about:blank" && navInput) navInput.value = loc;
-      } catch (_) {}
+  // Update nav bar URL when frame navigates
+  if (frameContainer) {
+    frameContainer.addEventListener("load", (e) => {
+      if (e.target && e.target.tagName === "IFRAME") {
+        try {
+          const loc = e.target.contentWindow.location.href;
+          if (loc && loc !== "about:blank" && navInput) navInput.value = loc;
+        } catch (_) {}
+      }
+    }, true);
+  }
+
+  // ── Panic Button ──────────────────────────────────────────────────────────
+  const panicBtn = document.getElementById("panic-btn");
+  const themeToggle = document.getElementById("theme-toggle");
+
+  function triggerPanic() {
+    console.log("[BlackWave] Panic button triggered");
+    window.location.href = "https://classroom.google.com";
+  }
+
+  if (panicBtn) {
+    panicBtn.addEventListener("click", triggerPanic);
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "=" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      triggerPanic();
     }
   }, true);
-}
 
-// ── Panic Button ──────────────────────────────────────────────────────────────
-const panicBtn = document.getElementById("panic-btn");
-const themeToggle = document.getElementById("theme-toggle");
-
-function triggerPanic() {
-  console.log("[BlackWave] Panic button triggered");
-  window.location.href = "https://classroom.google.com";
-}
-
-if (panicBtn) {
-  panicBtn.addEventListener("click", triggerPanic);
-}
-
-document.addEventListener("keydown", (e) => {
-  if (e.key === "=" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    e.preventDefault();
-    triggerPanic();
+  // ── Theme Toggle ──────────────────────────────────────────────────────────
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute("data-theme") === "dark";
+    
+    if (isDark) {
+      html.removeAttribute("data-theme");
+      localStorage.setItem("theme", "light");
+      if (themeToggle) themeToggle.textContent = "🌙";
+    } else {
+      html.setAttribute("data-theme", "dark");
+      localStorage.setItem("theme", "dark");
+      if (themeToggle) themeToggle.textContent = "☀️";
+    }
   }
-}, true);
 
-// ── Theme Toggle ──────────────────────────────────────────────────────────────
-function toggleTheme() {
-  const html = document.documentElement;
-  const isDark = html.getAttribute("data-theme") === "dark";
-  
-  if (isDark) {
-    html.removeAttribute("data-theme");
-    localStorage.setItem("theme", "light");
-    if (themeToggle) themeToggle.textContent = "🌙";
-  } else {
-    html.setAttribute("data-theme", "dark");
-    localStorage.setItem("theme", "dark");
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
     if (themeToggle) themeToggle.textContent = "☀️";
+  } else {
+    if (themeToggle) themeToggle.textContent = "🌙";
   }
-}
 
-const savedTheme = localStorage.getItem("theme");
-if (savedTheme === "dark") {
-  document.documentElement.setAttribute("data-theme", "dark");
-  if (themeToggle) themeToggle.textContent = "☀️";
-} else {
-  if (themeToggle) themeToggle.textContent = "🌙";
-}
+  if (themeToggle) {
+    themeToggle.addEventListener("click", toggleTheme);
+  }
 
-if (themeToggle) {
-  themeToggle.addEventListener("click", toggleTheme);
-}
+  // ── CATEGORY NAVIGATION ────────────────────────────────────────────────────────
+  const navButtons = document.querySelectorAll(".nav-btn");
+  const categories = document.querySelectorAll(".category");
 
-// ── CATEGORY NAVIGATION ────────────────────────────────────────────────────────
-const navButtons = document.querySelectorAll(".nav-btn");
-const categories = document.querySelectorAll(".category");
-
-navButtons.forEach(btn => {
-  btn.addEventListener("click", () => {
-    const categoryName = btn.getAttribute("data-category");
-    console.log("[BlackWave] Category clicked:", categoryName);
-    
-    navButtons.forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    
-    categories.forEach(cat => {
-      const catName = cat.getAttribute("data-category");
-      cat.style.display = catName === categoryName ? "block" : "none";
+  navButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const categoryName = btn.getAttribute("data-category");
+      console.log("[BlackWave] Category clicked:", categoryName);
+      
+      navButtons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      
+      categories.forEach(cat => {
+        const catName = cat.getAttribute("data-category");
+        cat.style.display = catName === categoryName ? "block" : "none";
+      });
     });
   });
-});
 
-// ── CARD CLICK HANDLER ────────────────────────────────────────────────────────
-const cards = document.querySelectorAll(".card");
-console.log(`[BlackWave] Found ${cards.length} cards`);
+  // ── CARD CLICK HANDLER ────────────────────────────────────────────────────────
+  const cards = document.querySelectorAll(".card");
+  console.log(`[BlackWave] Found ${cards.length} cards`);
 
-cards.forEach((card, index) => {
-  card.addEventListener("click", () => {
-    const url = card.getAttribute("data-url");
-    console.log(`[BlackWave] Card ${index} clicked:`, url);
-    if (url) {
-      navigate(url);
-    }
+  cards.forEach((card, index) => {
+    card.addEventListener("click", () => {
+      const url = card.getAttribute("data-url");
+      console.log(`[BlackWave] Card ${index} clicked:`, url);
+      if (url) {
+        navigate(url);
+      }
+    });
   });
-});
 
-console.log("[BlackWave] Initialization complete");
+  console.log("[BlackWave] UI setup complete");
+}
+
+// ── START THE APP ──────────────────────────────────────────────────────────────
+// Wait for DOM to be ready, then initialize
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initApp);
+} else {
+  initApp();
+}
+
+console.log("[BlackWave] Script loaded, waiting for DOM...");
